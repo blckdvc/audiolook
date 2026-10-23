@@ -1,5 +1,5 @@
 #!/bin/bash
-# Compile LoopLook (lecteur) sans Xcode, l'installe dans ~/Applications et le lance.
+# Compile audiolook (lecteur) sans Xcode, l'installe dans ~/Applications et le lance.
 set -euo pipefail
 cd "$(dirname "$0")"
 # Utilise les Command Line Tools (pas de licence Xcode à accepter)
@@ -8,8 +8,8 @@ if [ -d /Library/Developer/CommandLineTools ]; then export DEVELOPER_DIR=/Librar
 SDK=$(xcrun --sdk macosx --show-sdk-path)
 ARCH=$(uname -m)
 TARGET="$ARCH-apple-macos13.0"
-OUT="${TMPDIR:-/tmp}/looklookplayer-build"
-APP="$OUT/LoopLook.app"
+OUT="${TMPDIR:-/tmp}/audiolook-build"
+APP="$OUT/audiolook.app"
 rm -rf "$OUT"; mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
 echo "→ clang++ (pont Signalsmith)"
@@ -18,23 +18,23 @@ clang++ -std=c++17 -O2 -fvisibility=hidden -isysroot "$SDK" -target "$TARGET" \
   -c Src/StretchBridge.cpp -o "$OUT/StretchBridge.o"
 
 echo "→ swiftc $(swiftc --version 2>&1 | head -1)"
-swiftc -O -sdk "$SDK" -target "$TARGET" -module-name LoopLook \
+swiftc -O -sdk "$SDK" -target "$TARGET" -module-name audiolook \
   -framework Cocoa -framework AVFoundation -framework Carbon \
   -import-objc-header Src/Bridging.h -Xcc -I"$PWD/Src" \
   Src/*.swift "$OUT/StretchBridge.o" -lc++ \
-  -o "$APP/Contents/MacOS/LoopLook"
+  -o "$APP/Contents/MacOS/audiolook"
 
 cat > "$APP/Contents/Info.plist" <<'PL'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
   <key>CFBundleDevelopmentRegion</key><string>fr</string>
-  <key>CFBundleDisplayName</key><string>LoopLook</string>
-  <key>CFBundleExecutable</key><string>LoopLook</string>
+  <key>CFBundleDisplayName</key><string>audiolook</string>
+  <key>CFBundleExecutable</key><string>audiolook</string>
   <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundleIdentifier</key><string>com.ludo.LoopLook</string>
   <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
-  <key>CFBundleName</key><string>LoopLook</string>
+  <key>CFBundleName</key><string>audiolook</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>1.0</string>
   <key>CFBundleVersion</key><string>1</string>
@@ -43,7 +43,7 @@ cat > "$APP/Contents/Info.plist" <<'PL'
   <key>LSUIElement</key><true/>
   <key>NSPrincipalClass</key><string>NSApplication</string>
   <key>NSHighResolutionCapable</key><true/>
-  <key>NSAppleEventsUsageDescription</key><string>LoopLook lit la sélection courante du Finder pour ouvrir le fichier audio sélectionné.</string>
+  <key>NSAppleEventsUsageDescription</key><string>audiolook lit la sélection courante du Finder pour ouvrir le fichier audio sélectionné.</string>
   <key>CFBundleDocumentTypes</key><array><dict>
     <key>CFBundleTypeName</key><string>Fichier audio</string>
     <key>CFBundleTypeRole</key><string>Viewer</string>
@@ -81,10 +81,12 @@ xattr -cr "$APP" || true
 codesign --force --deep --sign - --entitlements "$OUT/app.entitlements" "$APP"
 codesign --verify --deep --strict "$APP" && echo "signature OK"
 
-DEST="$HOME/Applications/LoopLook.app"
+DEST="$HOME/Applications/audiolook.app"
 mkdir -p "$HOME/Applications"
-# ferme l'ancienne instance éventuelle
+# ferme les instances éventuelles (ancien nom LoopLook inclus) et retire l'ancien bundle renommé
+pkill -f "Applications/audiolook.app/Contents/MacOS/audiolook" 2>/dev/null || true
 pkill -f "Applications/LoopLook.app/Contents/MacOS/LoopLook" 2>/dev/null || true
+rm -rf "$HOME/Applications/LoopLook.app"
 # retire l'ancienne extension QuickLook abandonnée
 pluginkit -e ignore -i com.ludo.LoopLook.Preview 2>/dev/null || true
 sleep 1

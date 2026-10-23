@@ -1,11 +1,11 @@
-# audiolook — LoopLook
+# audiolook
 
 Lecteur de **boucles audio** pour macOS, en fenêtre flottante, avec time‑stretch et
 transposition de **haute qualité** (moteur Signalsmith Stretch, rendu hors‑ligne).
 Pensé pour auditionner et préparer des samples avant de les glisser dans un DAW (Logic…).
 
-![LoopLook — fenêtre principale](docs/screenshot-main.jpg)
-![LoopLook — région de boucle A/B](docs/screenshot-loop-ab.jpg)
+![audiolook — fenêtre principale](docs/screenshot-main.jpg)
+![audiolook — région de boucle A/B](docs/screenshot-loop-ab.jpg)
 
 ## Fonctions
 
@@ -24,7 +24,7 @@ Pensé pour auditionner et préparer des samples avant de les glisser dans un DA
 - **Transparence** réglable de la fenêtre ; **barre de titre masquée**.
 - Valeurs saisissables au clavier (champs texte) à côté de chaque réglage.
 - Réglages **conservés d'un fichier à l'autre** (volume / tempo / pitch / bypass).
-- **Suivi de la sélection du Finder** : sélectionner un fichier audio ouvre et joue LoopLook
+- **Suivi de la sélection du Finder** : sélectionner un fichier audio ouvre et joue audiolook
   automatiquement ; une sélection non‑audio arrête la lecture.
 - **Export vers un DAW** : **glisser‑déposer** du WAV traité (24 bits) vers n'importe quel DAW
   (ou le Finder) — on le lâche à l'endroit voulu dans l'arrangement — et bouton « Rendre… »
@@ -32,9 +32,9 @@ Pensé pour auditionner et préparer des samples avant de les glisser dans un DA
 
 ## Installation (DMG)
 
-Télécharge [`dist/LoopLook.dmg`](dist/LoopLook.dmg), ouvre‑le et glisse **LoopLook** dans **Applications**.
+Télécharge [`dist/audiolook.dmg`](dist/audiolook.dmg), ouvre‑le et glisse **audiolook** dans **Applications**.
 
-LoopLook est une app de **barre de menus** (pas d'icône dans le Dock) : après le lancement,
+audiolook est une app de **barre de menus** (pas d'icône dans le Dock) : après le lancement,
 une icône forme d'onde apparaît en haut à droite. Sélectionne un fichier audio dans le Finder
 (il s'ouvre tout seul), ou appuie sur **⌥Espace**.
 
@@ -68,10 +68,10 @@ Les **Command Line Tools** suffisent :
 ```
 
 Le script compile le pont C++ (Signalsmith) avec `clang++`, puis l'app avec `swiftc`,
-la signe en ad hoc et l'installe dans `~/Applications/LoopLook.app`.
+la signe en ad hoc et l'installe dans `~/Applications/audiolook.app`.
 `DEVELOPER_DIR` est forcé sur les Command Line Tools (évite la licence Xcode).
 
-Pour fabriquer le DMG : `./makedmg.command` (génère `dist/LoopLook.dmg`).
+Pour fabriquer le DMG : `./makedmg.command` (génère `dist/audiolook.dmg`).
 
 ## Architecture
 

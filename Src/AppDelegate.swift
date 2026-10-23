@@ -24,7 +24,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func setupStatusItem() {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        item.button?.image = NSImage(systemSymbolName: "waveform.circle.fill", accessibilityDescription: "LoopLook")
+        item.button?.image = NSImage(systemSymbolName: "waveform.circle.fill", accessibilityDescription: "audiolook")
         let menu = NSMenu()
         menu.addItem(withTitle: "Ouvrir la sélection du Finder  (⌥Espace)", action: #selector(openFinderSelection), keyEquivalent: "")
         let follow = NSMenuItem(title: "Suivre la sélection du Finder", action: #selector(toggleFollow), keyEquivalent: "")
@@ -32,7 +32,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(follow); followItem = follow
         menu.addItem(.separator())
         menu.addItem(withTitle: "À propos", action: #selector(about), keyEquivalent: "")
-        menu.addItem(withTitle: "Quitter LoopLook", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        menu.addItem(withTitle: "Quitter audiolook", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         for i in menu.items { i.target = self }
         menu.items.last?.target = NSApp
         item.menu = menu
@@ -46,7 +46,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func about() {
         let a = NSAlert()
-        a.messageText = "LoopLook"
+        a.messageText = "audiolook"
         a.informativeText = "Lecteur de boucles : forme d'onde, boucle A/B, volume, vitesse et transposition (Signalsmith).\n\nSuivre la sélection du Finder : le player charge automatiquement le fichier audio sélectionné.\n⌥Espace : ouvrir la sélection · Espace : lecture/pause · L : boucle · ←/→ : fichier précédent/suivant · Échap : fermer"
         a.runModal()
     }
@@ -67,7 +67,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             w.styleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
             w.titleVisibility = .hidden                 // barre de titre masquée
             w.titlebarAppearsTransparent = true
-            w.title = "LoopLook"
+            w.title = "audiolook"
             w.isMovableByWindowBackground = true        // on déplace par le fond (la forme d'onde ne bouge pas la fenêtre)
             w.setContentSize(NSSize(width: 580, height: 560))
             w.center()
@@ -106,7 +106,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let path = finderSelectionPOSIXPath() ?? ""
         let isAudio = !path.isEmpty && audioExts.contains((path as NSString).pathExtension.lowercased())
         if isAudio {
-            // recharge sur un nouveau fichier audio ; ne pas recharger pendant qu'on agit dans LoopLook
+            // recharge sur un nouveau fichier audio ; ne pas recharger pendant qu'on agit dans audiolook
             if path != lastLoadedPath && !NSApp.isActive { open(url: URL(fileURLWithPath: path), follow: true) }
         } else {
             // sélection quittée (vide / dossier / non-audio) → stop + masque, comme Quick Look

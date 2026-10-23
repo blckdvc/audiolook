@@ -32,7 +32,7 @@ final class LoopPlayer {
     private var offsetInSub = 0
     private var pausedGlobal: Double = 0
 
-    private let renderQueue = DispatchQueue(label: "LoopLook.render", qos: .userInitiated)
+    private let renderQueue = DispatchQueue(label: "audiolook.render", qos: .userInitiated)
     private var renderToken = 0
 
     // durées des fondus
