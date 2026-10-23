@@ -29,70 +29,109 @@ enum LogicImporter {
         let activate = bundleID.isEmpty ? "tell application \"\(name)\" to activate"
                                         : "tell application id \"\(esc(bundleID))\" to activate"
 
+        // On DÉCOUVRE d'abord les noms (menu / item / sous-item), puis on clique par chemin nommé :
+        // cliquer une référence d'item capturée pendant l'itération échoue en -1719 (sous-menu non
+        // « réalisé »). Un clic par chemin nommé réalise le menu à la volée et reste fiable.
         let script = """
         set thePath to "\(path)"
+        set topName to ""
+        set impName to ""
+        set childName to ""
         \(activate)
         delay 0.6
-        set didClick to false
         tell application "System Events"
             tell process "\(name)"
-                -- Passe 1 : une commande d'import qui concerne l'audio (directe ou dans un sous-menu)
-                repeat with m in menu bar items of menu bar 1
-                    if (exists menu 1 of m) then
-                        repeat with mi in menu items of menu 1 of m
-                            set n to ""
-                            try
-                                set n to name of mi
-                            end try
-                            if n is not "" and n contains "Import" then
-                                if n contains "Audio" then
-                                    try
-                                        click mi
-                                        set didClick to true
-                                    end try
-                                else if (exists menu 1 of mi) then
-                                    repeat with sm in menu items of menu 1 of mi
-                                        set sn to ""
+                -- Passe 1 : import lié à l'audio (direct, ou via un sous-menu « Import » → « …Audio… »)
+                repeat with mbi in menu bar items of menu bar 1
+                    set tn to ""
+                    try
+                        set tn to name of mbi
+                    end try
+                    if tn is not "" and tn is not missing value then
+                        try
+                            repeat with mi in menu items of menu 1 of mbi
+                                set nn to ""
+                                try
+                                    set nn to name of mi
+                                end try
+                                if nn is not "" and nn is not missing value and nn contains "Import" then
+                                    if nn contains "Audio" then
+                                        set topName to tn
+                                        set impName to nn
+                                        set childName to ""
+                                        exit repeat
+                                    else
+                                        set hasSub to false
                                         try
-                                            set sn to name of sm
+                                            if exists menu 1 of mi then set hasSub to true
                                         end try
-                                        if sn is not "" and sn contains "Audio" then
+                                        if hasSub then
                                             try
-                                                click sm
-                                                set didClick to true
+                                                repeat with sm in menu items of menu 1 of mi
+                                                    set sn to ""
+                                                    try
+                                                        set sn to name of sm
+                                                    end try
+                                                    if sn is not "" and sn is not missing value and sn contains "Audio" then
+                                                        set topName to tn
+                                                        set impName to nn
+                                                        set childName to sn
+                                                        exit repeat
+                                                    end if
+                                                end repeat
                                             end try
                                         end if
-                                        if didClick then exit repeat
-                                    end repeat
+                                    end if
                                 end if
-                            end if
-                            if didClick then exit repeat
-                        end repeat
-                    end if
-                    if didClick then exit repeat
-                end repeat
-                -- Passe 2 : à défaut, n'importe quelle commande « Import… » directe (feuille)
-                if not didClick then
-                    repeat with m in menu bar items of menu bar 1
-                        if (exists menu 1 of m) then
-                            repeat with mi in menu items of menu 1 of m
-                                set n to ""
-                                try
-                                    set n to name of mi
-                                end try
-                                if n is not "" and n contains "Import" and not (exists menu 1 of mi) then
-                                    try
-                                        click mi
-                                        set didClick to true
-                                    end try
-                                end if
-                                if didClick then exit repeat
+                                if impName is not "" then exit repeat
                             end repeat
+                        end try
+                    end if
+                    if impName is not "" then exit repeat
+                end repeat
+                -- Passe 2 : à défaut, une commande « Import… » directe (feuille, sans sous-menu)
+                if impName is "" then
+                    repeat with mbi in menu bar items of menu bar 1
+                        set tn to ""
+                        try
+                            set tn to name of mbi
+                        end try
+                        if tn is not "" and tn is not missing value then
+                            try
+                                repeat with mi in menu items of menu 1 of mbi
+                                    set nn to ""
+                                    try
+                                        set nn to name of mi
+                                    end try
+                                    if nn is not "" and nn is not missing value and nn contains "Import" then
+                                        set hasSub to false
+                                        try
+                                            if exists menu 1 of mi then set hasSub to true
+                                        end try
+                                        if not hasSub then
+                                            set topName to tn
+                                            set impName to nn
+                                            set childName to ""
+                                            exit repeat
+                                        end if
+                                    end if
+                                end repeat
+                            end try
                         end if
-                        if didClick then exit repeat
+                        if impName is not "" then exit repeat
                     end repeat
                 end if
-                if not didClick then return "menu_introuvable"
+                if impName is "" then return "menu_introuvable"
+                -- Clic par chemin nommé (réalise le menu, pas de référence périmée)
+                try
+                    if childName is "" then
+                        click menu item impName of menu 1 of menu bar item topName of menu bar 1
+                    else
+                        click menu item childName of menu 1 of menu item impName of menu 1 of menu bar item topName of menu bar 1
+                    end if
+                on error errMsg number errNum
+                    return "clic_echec:" & errNum
+                end try
                 -- Sélecteur de fichier : on saisit le chemin
                 delay 0.8
                 keystroke "g" using {command down, shift down}
@@ -134,6 +173,7 @@ enum LogicImporter {
         let s = result?.stringValue ?? ""
         if s == "ok" { return (true, "Import lancé dans \(rawName).") }
         if s == "menu_introuvable" { return (false, "Pas de commande d'import audio trouvée dans le menu de \(rawName). Glisse plutôt la pastille directement dans l'app.") }
+        if s.hasPrefix("clic_echec:") { return (false, "Commande d'import trouvée dans \(rawName) mais le clic a échoué (\(s.dropFirst(11))). Glisse plutôt la pastille directement dans l'app.") }
         return (false, "Réponse inattendue : \(s)")
     }
 
