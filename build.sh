@@ -31,6 +31,7 @@ cat > "$APP/Contents/Info.plist" <<'PL'
   <key>CFBundleDevelopmentRegion</key><string>fr</string>
   <key>CFBundleDisplayName</key><string>LoopLook</string>
   <key>CFBundleExecutable</key><string>LoopLook</string>
+  <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundleIdentifier</key><string>com.ludo.LoopLook</string>
   <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
   <key>CFBundleName</key><string>LoopLook</string>
@@ -69,6 +70,11 @@ cat > "$OUT/app.entitlements" <<'PL'
   <key>com.apple.security.automation.apple-events</key><true/>
 </dict></plist>
 PL
+
+echo "→ Icône (iconutil)"
+if [ -d Resources/AppIcon.iconset ]; then
+  iconutil -c icns Resources/AppIcon.iconset -o "$APP/Contents/Resources/AppIcon.icns" && echo "icône OK" || echo "⚠︎ iconutil a échoué (app sans icône)"
+fi
 
 echo "→ Signature ad hoc…"
 xattr -cr "$APP" || true
