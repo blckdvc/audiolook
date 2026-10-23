@@ -45,9 +45,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func about() {
+        let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
         let a = NSAlert()
-        a.messageText = "audiolook"
-        a.informativeText = "Lecteur de boucles : forme d'onde, boucle A/B, volume, vitesse et transposition (Signalsmith).\n\nSuivre la sélection du Finder : le player charge automatiquement le fichier audio sélectionné.\n⌥Espace : ouvrir la sélection · Espace : lecture/pause · L : boucle · ←/→ : fichier précédent/suivant · Échap : fermer"
+        a.messageText = "audiolook \(v)"
+        a.informativeText = "Lecteur de boucles : forme d'onde, boucle A/B, tempo (BPM), transposition et grille magnétique (Signalsmith).\n\nSuivre la sélection du Finder : le player charge automatiquement le fichier audio sélectionné.\n⌥Espace : ouvrir la sélection · Espace : lecture/pause · L : boucle · ←/→ : fichier précédent/suivant · Échap : fermer"
         a.runModal()
     }
 
