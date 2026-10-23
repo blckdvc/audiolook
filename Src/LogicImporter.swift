@@ -20,7 +20,7 @@ enum LogicImporter {
 /// exactement à l'endroit voulu dans l'arrangement (position de la tête de lecture comprise).
 final class SampleDragView: NSView, NSDraggingSource {
     var provideURL: (() -> URL?)?
-    var label: String = "Glisser vers un DAW / Finder"
+    var label: String = Lang.t("Drag to a DAW / Finder", "Glisser vers un DAW / Finder")
 
     override init(frame: NSRect) { super.init(frame: frame); wantsLayer = true; setup() }
     required init?(coder: NSCoder) { super.init(coder: coder); wantsLayer = true; setup() }

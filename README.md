@@ -1,103 +1,91 @@
 # audiolook
 
-Lecteur de **boucles audio** pour macOS, en fenêtre flottante, avec time‑stretch et
-transposition de **haute qualité** (moteur Signalsmith Stretch, rendu hors‑ligne).
-Pensé pour auditionner et préparer des samples avant de les glisser dans un DAW (Logic…).
+A macOS **audio loop** player in a floating / menu-bar window, with **high-quality**
+time-stretch and transposition (Signalsmith Stretch engine, offline rendering).
+Made to audition and prepare samples before dragging them into a DAW.
 
-![audiolook — fenêtre principale](docs/screenshot-main.jpg)
-![audiolook — région de boucle A/B](docs/screenshot-loop-ab.jpg)
+The interface follows the system language (English, or French on a French macOS).
 
-### Soutenir
-Projet gratuit et open‑source 🙂 — si le cœur t'en dit, offre‑moi quelques tokens :
+![audiolook — main window](docs/screenshot-main.jpg)
+![audiolook — A/B loop region](docs/screenshot-loop-ab.jpg)
+
+### Support the project
+Free and open-source 🙂 — if you feel like it, buy me a few tokens:
 
 [![Buy me tokens](docs/buy-me-tokens.png)](https://paypal.me/lbenh)
 
-## Fonctions
+## Features
 
-- **Forme d'onde** avec tête de lecture ; clic pour se positionner.
-- **Boucle A/B** : deux poignées pour délimiter la région bouclée (fondu enchaîné, sans clic).
-- **Volume** temps réel.
-- **Tempo (BPM)** — détection automatique du tempo ; cale le sample à un BPM cible
-  (time‑stretch, hauteur inchangée). BPM source éditable, ou saisie du nombre de temps.
-- **Transposition** (−24…+24 demi‑tons) — tempo inchangé.
-- **Grille magnétique** : les poignées A/B se calent sur la grille (1/16, 1/8, 1/4, mesure),
-  déduite du BPM.
-- **Déplacement de la boucle** : attrape la **barre en haut, entre A et B**, sur la forme d'onde
-  pour glisser toute la région d'un coup (longueur conservée) — librement, ou aimantée à la grille.
-- **Désactiver le traitement** : joue l'original sans re‑rendu.
-- La **lecture s'arrête** quand on ferme la fenêtre.
-- **Transparence** réglable de la fenêtre ; **barre de titre masquée**.
-- Valeurs saisissables au clavier (champs texte) à côté de chaque réglage.
-- Réglages **conservés d'un fichier à l'autre** (volume / tempo / pitch / bypass).
-- **Suivi de la sélection du Finder** : sélectionner un fichier audio ouvre et joue audiolook
-  automatiquement ; une sélection non‑audio arrête la lecture.
-- **Export vers un DAW** : **glisser‑déposer** du WAV traité (24 bits) vers n'importe quel DAW
-  (ou le Finder) — on le lâche à l'endroit voulu dans l'arrangement — et bouton « Rendre… »
-  qui écrit le WAV et le révèle dans le Finder.
+- **Waveform** with playhead; click to seek.
+- **A/B loop** with crossfade (click-free): two handles, or the **bar at the top between
+  A and B** to slide the whole region (freely, or snapped to the grid).
+- **Tempo (BPM)**: automatic detection + match to a target BPM (pitch unchanged).
+  Source BPM is editable, or enter the number of beats.
+- **Transposition** −24…+24 semitones (tempo unchanged).
+- **Magnetic grid** (1/16, 1/8, 1/4, bar) derived from the BPM.
+- **Attack preserved** at the loop start (no fade over the first transient — the kick stays punchy).
+- **Volume**, adjustable window **transparency**, values editable from the keyboard.
+- **Bypass processing** to compare with the original.
+- **Follow the Finder selection**: selecting an audio file opens and plays it automatically;
+  a non-audio selection stops playback. Playback also stops when the window is closed.
+- **Export**: drag-and-drop the processed WAV (24-bit) into any DAW (or the Finder) — drop it
+  exactly where you want it in the arrangement — plus a **“Render…”** button that writes the
+  WAV and reveals it in the Finder.
+- Settings **kept from one file to the next** (volume / tempo / pitch / bypass).
 
-## Installation (DMG)
+## Install (DMG)
 
-Télécharge [`dist/audiolook.dmg`](dist/audiolook.dmg), ouvre‑le et glisse **audiolook** dans **Applications**.
+Download [`dist/audiolook.dmg`](dist/audiolook.dmg), open it and drag **audiolook** into **Applications**.
 
-audiolook est une app de **barre de menus** (pas d'icône dans le Dock) : après le lancement,
-une icône forme d'onde apparaît en haut à droite. Sélectionne un fichier audio dans le Finder
-(il s'ouvre tout seul), ou appuie sur **⌥Espace**.
+The app is **ad-hoc signed** (no paid Apple Developer account), so on **first launch**:
+right-click **audiolook › Open › Open** (macOS 13/14), or System Settings › Privacy & Security ›
+**“Open Anyway”** (macOS 15). A short “Read me” is included in the DMG.
 
-> App signée en ad hoc (pas de compte développeur). Au premier lancement, autorise‑la via
-> clic droit › Ouvrir si Gatekeeper la bloque.
+audiolook lives in the **menu bar** (no Dock icon): select an audio file in the Finder and it
+opens on its own.
 
-## Raccourcis
+## Export to a DAW
 
-| Touche | Action |
-|---|---|
-| ⌥Espace | Ouvrir la sélection du Finder |
-| Espace | Lecture / pause |
-| L | Boucle on/off |
-| ←/→ | Fichier précédent / suivant du dossier |
-| Échap | Fermer la fenêtre |
+- **Drag to a DAW / Finder**: drag the chip into your DAW's arrangement and drop it where you
+  want (the playhead position, for instance) — this is the recommended method and works with any DAW.
+- **Render…**: writes the processed WAV and reveals it in the Finder.
+- **A/B region** checkbox: limits the export / drag to the looped region only.
 
-## Export vers un DAW
+## Build (without Xcode)
 
-- **Glisser vers un DAW / Finder** : tire la pastille dans l'arrangement de ton DAW et lâche‑la
-  à l'endroit voulu (la position de la tête de lecture, par exemple) — c'est la méthode recommandée,
-  elle marche avec n'importe quel DAW.
-- **Rendre…** : écrit le WAV traité et le révèle dans le Finder.
-- Case **Région A/B** : limite l'export/le glisser à la région bouclée.
-
-## Compilation (sans Xcode)
-
-Les **Command Line Tools** suffisent :
+The **Command Line Tools** are enough:
 
 ```bash
 ./build.sh
 ```
 
-Le script compile le pont C++ (Signalsmith) avec `clang++`, puis l'app avec `swiftc`,
-la signe en ad hoc et l'installe dans `~/Applications/audiolook.app`.
-`DEVELOPER_DIR` est forcé sur les Command Line Tools (évite la licence Xcode).
+The script compiles the C++ bridge (Signalsmith) with `clang++`, then the app with `swiftc`,
+ad-hoc signs it and installs it to `~/Applications/audiolook.app`.
+`DEVELOPER_DIR` is forced to the Command Line Tools (avoids the Xcode license).
 
-Pour fabriquer le DMG : `./makedmg.command` (génère `dist/audiolook.dmg`).
+To build the DMG: `./makedmg.command` (produces `dist/audiolook.dmg`).
 
 ## Architecture
 
 ```
 Src/
-  main.swift                app (agent barre de menus)
-  AppDelegate.swift         raccourci global, suivi de la sélection Finder, fenêtre
-  PlayerViewController.swift interface (forme d'onde, réglages, export)
-  LoopPlayer.swift          lecture en boucle A/B, fondus, re-rendu
-  SampleProcessor.swift     lecture fichier + rendu Signalsmith + export WAV
-  BPMDetector.swift         détection de tempo (enveloppe RMS + autocorrélation)
-  WaveformView.swift        forme d'onde + poignées A/B + grille magnétique
-  WaveformAnalyzer.swift    calcul pics/RMS
-  LogicImporter.swift       export WAV temporaire + source du glisser-déposer
-  StretchBridge.{h,cpp}     pont C vers Signalsmith Stretch
-  Bridging.h                bridging header Swift/C
+  main.swift                app (menu-bar agent)
+  AppDelegate.swift         global shortcut, Finder-selection follow, window
+  PlayerViewController.swift UI (waveform, controls, export)
+  LoopPlayer.swift          A/B loop playback, fades, re-render
+  SampleProcessor.swift     file read + Signalsmith render + WAV export
+  BPMDetector.swift         tempo detection (RMS envelope + autocorrelation)
+  WaveformView.swift        waveform + A/B handles + magnetic grid
+  WaveformAnalyzer.swift    peak/RMS computation
+  LogicImporter.swift       temp WAV export + drag-and-drop source
+  Localize.swift            tiny EN/FR localization helper
+  StretchBridge.{h,cpp}     C bridge to Signalsmith Stretch
+  Bridging.h                Swift/C bridging header
 Vendor/                     Signalsmith Stretch + Linear (headers)
 ```
 
-## Licences
+## Licenses
 
-Code tiers dans `Vendor/` (voir `LICENSE-THIRD-PARTY.md`) :
+Third-party code in `Vendor/` (see `LICENSE-THIRD-PARTY.md`):
 - [Signalsmith Stretch](https://github.com/Signalsmith-Audio/signalsmith-stretch) — MIT
 - [Signalsmith Linear](https://github.com/Signalsmith-Audio/linear) — MIT

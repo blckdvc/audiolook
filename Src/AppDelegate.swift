@@ -26,13 +26,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         item.button?.image = NSImage(systemSymbolName: "waveform.circle.fill", accessibilityDescription: "audiolook")
         let menu = NSMenu()
-        menu.addItem(withTitle: "Ouvrir la sélection du Finder  (⌥Espace)", action: #selector(openFinderSelection), keyEquivalent: "")
-        let follow = NSMenuItem(title: "Suivre la sélection du Finder", action: #selector(toggleFollow), keyEquivalent: "")
+        menu.addItem(withTitle: Lang.t("Open Finder selection", "Ouvrir la sélection du Finder"), action: #selector(openFinderSelection), keyEquivalent: "")
+        let follow = NSMenuItem(title: Lang.t("Follow Finder selection", "Suivre la sélection du Finder"), action: #selector(toggleFollow), keyEquivalent: "")
         follow.state = followSelection ? .on : .off
         menu.addItem(follow); followItem = follow
         menu.addItem(.separator())
-        menu.addItem(withTitle: "À propos", action: #selector(about), keyEquivalent: "")
-        menu.addItem(withTitle: "Quitter audiolook", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        menu.addItem(withTitle: Lang.t("About", "À propos"), action: #selector(about), keyEquivalent: "")
+        menu.addItem(withTitle: Lang.t("Quit", "Quitter"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         for i in menu.items { i.target = self }
         menu.items.last?.target = NSApp
         item.menu = menu
@@ -48,7 +48,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
         let a = NSAlert()
         a.messageText = "audiolook \(v)"
-        a.informativeText = "Lecteur de boucles : forme d'onde, boucle A/B, tempo (BPM), transposition et grille magnétique (Signalsmith).\n\nSuivre la sélection du Finder : le player charge automatiquement le fichier audio sélectionné.\n⌥Espace : ouvrir la sélection · Espace : lecture/pause · L : boucle · ←/→ : fichier précédent/suivant · Échap : fermer"
+        a.informativeText = Lang.t(
+            "Loop player: waveform, A/B loop, tempo (BPM), transposition and magnetic grid (Signalsmith engine).\n\nSelect an audio file in the Finder to load it automatically.\n\nby blckdvc",
+            "Lecteur de boucles : forme d'onde, boucle A/B, tempo (BPM), transposition et grille magnétique (moteur Signalsmith).\n\nSélectionne un fichier audio dans le Finder pour le charger automatiquement.\n\npar blckdvc")
         a.runModal()
     }
 

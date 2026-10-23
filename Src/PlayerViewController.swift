@@ -3,7 +3,7 @@ import AVFoundation
 
 final class PlayerViewController: NSViewController, NSWindowDelegate {
     private let waveform = WaveformView()
-    private let titleLabel = NSTextField(labelWithString: "Aucun fichier")
+    private let titleLabel = NSTextField(labelWithString: Lang.t("No file", "Aucun fichier"))
     private let infoLabel = NSTextField(labelWithString: "")
     private let timeLabel = NSTextField(labelWithString: "0:00.0 / 0:00.0")
     private let playButton = NSButton()
@@ -25,7 +25,7 @@ final class PlayerViewController: NSViewController, NSWindowDelegate {
     private var tempoInitialized = false
 
     // Grille
-    private let gridToggle = NSButton(checkboxWithTitle: "Aimanter", target: nil, action: nil)
+    private let gridToggle = NSButton(checkboxWithTitle: Lang.t("Snap", "Aimanter"), target: nil, action: nil)
     private let gridPopup = NSPopUpButton()
     private let beatsField = NSTextField()
 
@@ -34,8 +34,8 @@ final class PlayerViewController: NSViewController, NSWindowDelegate {
     private let opValue = NSTextField(labelWithString: "100 %")
 
     private let dragChip = SampleDragView()
-    private let regionToggle = NSButton(checkboxWithTitle: "Région A/B", target: nil, action: nil)
-    private let bypassToggle = NSButton(checkboxWithTitle: "Désactiver le traitement (pitch / tempo)", target: nil, action: nil)
+    private let regionToggle = NSButton(checkboxWithTitle: Lang.t("A/B region", "Région A/B"), target: nil, action: nil)
+    private let bypassToggle = NSButton(checkboxWithTitle: Lang.t("Bypass processing (pitch / tempo)", "Désactiver le traitement (pitch / tempo)"), target: nil, action: nil)
     private let renderButton = NSButton()
 
     private let player = LoopPlayer()
@@ -58,7 +58,7 @@ final class PlayerViewController: NSViewController, NSWindowDelegate {
 
         configure(playButton, "play.fill", "Lecture / pause", #selector(togglePlay))
         configure(loopButton, "repeat", "Boucle", #selector(toggleLoop)); loopButton.setButtonType(.toggle); loopButton.state = .on
-        fullButton.title = "Boucle entière"; fullButton.bezelStyle = .rounded; fullButton.controlSize = .small
+        fullButton.title = Lang.t("Whole loop", "Boucle entière"); fullButton.bezelStyle = .rounded; fullButton.controlSize = .small
         fullButton.target = self; fullButton.action = #selector(resetLoop); fullButton.font = .systemFont(ofSize: 11)
 
         waveform.onSeek = { [weak self] f in self?.player.seek(toGlobal: f); self?.refresh() }
@@ -103,16 +103,16 @@ final class PlayerViewController: NSViewController, NSWindowDelegate {
 
         // Grille
         gridToggle.target = self; gridToggle.action = #selector(gridChanged); gridToggle.font = .systemFont(ofSize: 11)
-        gridPopup.addItems(withTitles: ["1/16", "1/8", "1/4", "Mesure"]); gridPopup.selectItem(at: 2)
+        gridPopup.addItems(withTitles: ["1/16", "1/8", "1/4", Lang.t("Bar", "Mesure")]); gridPopup.selectItem(at: 2)
         gridPopup.controlSize = .small; gridPopup.font = .systemFont(ofSize: 11); gridPopup.target = self; gridPopup.action = #selector(gridChanged)
-        let beatsLabel = label("boucle ="); let beatsUnit = label("temps")
+        let beatsLabel = label(Lang.t("loop =", "boucle =")); let beatsUnit = label(Lang.t("beats", "temps"))
         let gridRow = NSStackView(views: [icon("grid"), gridToggle, gridPopup, NSView(), beatsLabel, beatsField, beatsUnit])
         gridRow.orientation = .horizontal; gridRow.spacing = 8
 
         dragChip.provideURL = { [weak self] in self?.exportURL() }
         dragChip.translatesAutoresizingMaskIntoConstraints = false
         regionToggle.font = .systemFont(ofSize: 11)
-        renderButton.title = "Rendre…"; renderButton.image = sym("square.and.arrow.down"); renderButton.imagePosition = .imageLeading
+        renderButton.title = Lang.t("Render…", "Rendre…"); renderButton.image = sym("square.and.arrow.down"); renderButton.imagePosition = .imageLeading
         renderButton.bezelStyle = .rounded; renderButton.controlSize = .small; renderButton.target = self; renderButton.action = #selector(renderReveal)
         let actions = NSStackView(views: [dragChip, NSView(), regionToggle, renderButton])
         actions.orientation = .horizontal; actions.spacing = 10
@@ -186,10 +186,10 @@ final class PlayerViewController: NSViewController, NSWindowDelegate {
         analyzer.cancel(); player.stop()
         waveform.peaks = []; waveform.rms = []; waveform.progress = 0; waveform.loopA = 0; waveform.loopB = 1
         currentURL = url
-        titleLabel.stringValue = "Chargement…"; infoLabel.stringValue = ""
+        titleLabel.stringValue = Lang.t("Loading…", "Chargement…"); infoLabel.stringValue = ""
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             guard let src = SampleProcessor.read(url: url) else {
-                DispatchQueue.main.async { self?.titleLabel.stringValue = "Lecture impossible" }; return
+                DispatchQueue.main.async { self?.titleLabel.stringValue = Lang.t("Can't play this file", "Lecture impossible") }; return
             }
             let bpm = BPMDetector.detect(src)
             DispatchQueue.main.async {
@@ -315,7 +315,7 @@ final class PlayerViewController: NSViewController, NSWindowDelegate {
     }
     @objc private func renderReveal() {
         guard let url = exportURL() else { NSSound.beep(); return }
-        NSWorkspace.shared.activateFileViewerSelecting([url]); flash("Rendu : \(url.lastPathComponent)")
+        NSWorkspace.shared.activateFileViewerSelecting([url]); flash(Lang.t("Rendered: ", "Rendu : ") + url.lastPathComponent)
     }
 
     // MARK: UI refresh
@@ -353,7 +353,7 @@ final class PlayerViewController: NSViewController, NSWindowDelegate {
     private func describe(_ url: URL, _ src: AudioSource?) -> String {
         let r = (src?.sampleRate ?? 44100)/1000
         let rate = r == r.rounded() ? String(format: "%.0f kHz", r) : String(format: "%.1f kHz", r)
-        let ch = (src?.channels ?? 2) == 1 ? "Mono" : "Stéréo"
+        let ch = (src?.channels ?? 2) == 1 ? "Mono" : Lang.t("Stereo", "Stéréo")
         var parts = [url.pathExtension.uppercased(), rate, ch, fmt(player.duration), "≈\(Int(sourceBPM)) BPM"]
         if siblings.count > 1 { parts.append("\(index+1)/\(siblings.count)") }
         return parts.filter { !$0.isEmpty }.joined(separator: " · ")
