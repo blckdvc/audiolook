@@ -6,17 +6,21 @@ final class WaveformView: NSView {
     var peaks: [Float] = [] { didSet { needsDisplay = true } }
     var rms: [Float] = [] { didSet { needsDisplay = true } }
     var progress: Double = 0 { didSet { if oldValue != progress { needsDisplay = true } } }
-    var loopA: Double = 0 { didSet { needsDisplay = true } }
-    var loopB: Double = 1 { didSet { needsDisplay = true } }
+    var loopA: Double = 0 { didSet { needsDisplay = true; window?.invalidateCursorRects(for: self) } }
+    var loopB: Double = 1 { didSet { needsDisplay = true; window?.invalidateCursorRects(for: self) } }
     var gridEnabled = false { didSet { needsDisplay = true } }
     var gridSpacing: Double = 0 { didSet { needsDisplay = true } }   // fraction 0..1 entre deux lignes
 
     var onSeek: ((Double) -> Void)?
     var onLoopChange: ((Double, Double) -> Void)?
 
-    private enum Drag { case none, seek, handleA, handleB }
+    private enum Drag { case none, seek, handleA, handleB, region }
     private var drag: Drag = .none
     private let handleHit: CGFloat = 10
+    private let moveBandH: CGFloat = 16            // bande du haut (entre A et B) pour déplacer la boucle
+    private var dragStartX: CGFloat = 0
+    private var dragStartA: Double = 0
+    private var dragStartB: Double = 0
 
     override var isFlipped: Bool { true }
     override var mouseDownCanMoveWindow: Bool { false }
@@ -83,6 +87,15 @@ final class WaveformView: NSView {
             NSBezierPath(roundedRect: r, xRadius: 2, yRadius: 2).fill()
         }
 
+        // barre de déplacement de la boucle : une ligne en haut, entre A et B, qu'on attrape pour glisser
+        if xB - xA > 3 {
+            accent.setFill()
+            NSBezierPath(roundedRect: CGRect(x: xA, y: 0, width: xB - xA, height: 5), xRadius: 2, yRadius: 2).fill()
+            let cx = (xA + xB) / 2                 // petits points de « grip » au centre
+            NSColor.black.withAlphaComponent(0.35).setFill()
+            for k in -1...1 { ctx.fill(CGRect(x: cx + CGFloat(k) * 4 - 0.75, y: 1.5, width: 1.5, height: 2)) }
+        }
+
         // tête de lecture
         let playedX = b.width * CGFloat(progress)
         NSColor.labelColor.setFill()
@@ -92,20 +105,43 @@ final class WaveformView: NSView {
     override func mouseDown(with e: NSEvent) {
         let p = convert(e.locationInWindow, from: nil)
         let xA = bounds.width * CGFloat(loopA), xB = bounds.width * CGFloat(loopB)
-        if abs(p.x - xA) <= handleHit { drag = .handleA }
-        else if abs(p.x - xB) <= handleHit { drag = .handleB }
+        if abs(p.x - xA) <= handleHit { drag = .handleA; updateHandles(p) }
+        else if abs(p.x - xB) <= handleHit { drag = .handleB; updateHandles(p) }
+        else if p.y <= moveBandH && p.x > xA && p.x < xB {    // bande du haut → déplacer toute la boucle
+            drag = .region; dragStartX = p.x; dragStartA = loopA; dragStartB = loopB
+            NSCursor.closedHand.set()
+        }
         else { drag = .seek; seek(p) }
-        if drag == .handleA || drag == .handleB { updateHandles(p) }
     }
     override func mouseDragged(with e: NSEvent) {
         let p = convert(e.locationInWindow, from: nil)
         switch drag {
         case .seek: seek(p)
         case .handleA, .handleB: updateHandles(p)
+        case .region: moveRegion(p)
         case .none: break
         }
     }
-    override func mouseUp(with e: NSEvent) { drag = .none }
+    override func mouseUp(with e: NSEvent) { drag = .none; window?.invalidateCursorRects(for: self) }
+
+    /// Glisse toute la région A/B (longueur conservée), librement ou aimantée à la grille.
+    private func moveRegion(_ p: NSPoint) {
+        let len = dragStartB - dragStartA
+        let dx = Double((p.x - dragStartX) / bounds.width)
+        var a = snap(dragStartA + dx)
+        a = min(max(a, 0), max(0, 1 - len))
+        loopA = a; loopB = min(1, a + len)
+        onLoopChange?(loopA, loopB)
+    }
+
+    override func resetCursorRects() {
+        let w = bounds.width
+        let xA = w * CGFloat(loopA), xB = w * CGFloat(loopB)
+        addCursorRect(CGRect(x: xA - handleHit, y: 0, width: handleHit * 2, height: bounds.height), cursor: .resizeLeftRight)
+        addCursorRect(CGRect(x: xB - handleHit, y: 0, width: handleHit * 2, height: bounds.height), cursor: .resizeLeftRight)
+        let innerX = xA + handleHit, innerW = (xB - handleHit) - (xA + handleHit)
+        if innerW > 2 { addCursorRect(CGRect(x: innerX, y: 0, width: innerW, height: moveBandH), cursor: .openHand) }
+    }
 
     private func seek(_ p: NSPoint) {
         let f = Double(min(max(p.x / bounds.width, 0), 1))

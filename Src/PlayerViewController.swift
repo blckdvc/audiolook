@@ -29,10 +29,6 @@ final class PlayerViewController: NSViewController, NSWindowDelegate {
     private let gridPopup = NSPopUpButton()
     private let beatsField = NSTextField()
 
-    // Déplacement de la boucle (curseur) : glisse toute la région A/B sans changer sa longueur
-    private let loopPosSlider = NSSlider()
-    private let loopPosField = NSTextField()
-
     // Opacité
     private let opSlider = NSSlider()
     private let opValue = NSTextField(labelWithString: "100 %")
@@ -113,18 +109,6 @@ final class PlayerViewController: NSViewController, NSWindowDelegate {
         let gridRow = NSStackView(views: [icon("grid"), gridToggle, gridPopup, NSView(), beatsLabel, beatsField, beatsUnit])
         gridRow.orientation = .horizontal; gridRow.spacing = 8
 
-        // Déplacer la boucle : un curseur qui fait glisser A et B ensemble
-        loopPosSlider.minValue = 0; loopPosSlider.maxValue = 1; loopPosSlider.doubleValue = 0
-        loopPosSlider.controlSize = .small; loopPosSlider.target = self; loopPosSlider.action = #selector(loopPosChanged)
-        loopPosSlider.setContentHuggingPriority(.defaultLow, for: .horizontal)
-        loopPosField.target = self; loopPosField.action = #selector(loopPosFieldEdited)
-        loopPosField.font = .monospacedDigitSystemFont(ofSize: 11, weight: .medium); loopPosField.alignment = .right
-        loopPosField.isEditable = true; loopPosField.isBordered = true; loopPosField.bezelStyle = .roundedBezel; loopPosField.focusRingType = .none
-        loopPosField.setContentHuggingPriority(.required, for: .horizontal)
-        loopPosField.widthAnchor.constraint(equalToConstant: 64).isActive = true
-        let loopRow = NSStackView(views: [icon("arrow.left.and.right"), label("Position"), loopPosSlider, loopPosField])
-        loopRow.orientation = .horizontal; loopRow.spacing = 8
-
         dragChip.provideURL = { [weak self] in self?.exportURL() }
         dragChip.translatesAutoresizingMaskIntoConstraints = false
         regionToggle.font = .systemFont(ofSize: 11)
@@ -144,7 +128,7 @@ final class PlayerViewController: NSViewController, NSWindowDelegate {
         opValue.widthAnchor.constraint(equalToConstant: 46).isActive = true
         let opRow = NSStackView(views: [icon("circle.lefthalf.filled"), opSlider, opValue]); opRow.orientation = .horizontal; opRow.spacing = 8
 
-        let stack = NSStackView(views: [header, waveform, transport, controls, gridRow, loopRow, bypassRow, opRow, actions])
+        let stack = NSStackView(views: [header, waveform, transport, controls, gridRow, bypassRow, opRow, actions])
         stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 12
         stack.translatesAutoresizingMaskIntoConstraints = false
         root.addSubview(stack)
@@ -157,7 +141,6 @@ final class PlayerViewController: NSViewController, NSWindowDelegate {
             waveform.widthAnchor.constraint(equalTo: stack.widthAnchor),
             transport.widthAnchor.constraint(equalTo: stack.widthAnchor),
             gridRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
-            loopRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
             actions.widthAnchor.constraint(equalTo: stack.widthAnchor),
             waveform.heightAnchor.constraint(greaterThanOrEqualToConstant: 120),
         ])
@@ -269,29 +252,6 @@ final class PlayerViewController: NSViewController, NSWindowDelegate {
         waveform.gridEnabled = gridToggle.state == .on
     }
 
-    // MARK: Déplacement de la boucle (curseur)
-    private func snapFrac(_ f: Double) -> Double {
-        guard gridToggle.state == .on, waveform.gridSpacing > 0.0005 else { return f }
-        let k = (f / waveform.gridSpacing).rounded()
-        return min(max(k * waveform.gridSpacing, 0), 1)
-    }
-    /// Glisse la région A/B à une nouvelle position de départ, en conservant sa longueur.
-    private func moveLoop(toStart s: Double) {
-        let len = player.loopB - player.loopA
-        var a = snapFrac(min(max(s, 0), max(0, 1 - len)))
-        a = min(max(a, 0), max(0, 1 - len))
-        let b = min(1, a + len)
-        player.setLoopRegion(a: a, b: b)
-        waveform.loopA = a; waveform.loopB = b
-        refresh()
-    }
-    @objc private func loopPosChanged() { moveLoop(toStart: loopPosSlider.doubleValue) }
-    @objc private func loopPosFieldEdited() {
-        if let s = doubleIn(loopPosField.stringValue), player.duration > 0 { moveLoop(toStart: s / player.duration) }
-        else { updateValues() }
-        focusWave()
-    }
-
     // MARK: Transport / divers
     @objc private func togglePlay() { player.togglePlay(); refresh() }
     @objc private func toggleLoop() { player.setLoop(loopButton.state == .on); refresh() }
@@ -310,7 +270,6 @@ final class PlayerViewController: NSViewController, NSWindowDelegate {
     @objc private func resetPitch() { pitchSlider.doubleValue = 0; pitchChanged() }
 
     private func intIn(_ s: String) -> Int? { Int(s.filter { "0123456789+-".contains($0) }) }
-    private func doubleIn(_ s: String) -> Double? { Double(s.filter { "0123456789.,".contains($0) }.replacingOccurrences(of: ",", with: ".")) }
     private func focusWave() { view.window?.makeFirstResponder(waveform) }
     @objc private func volFieldEdited() {
         if let n = intIn(volValue.stringValue) { volSlider.doubleValue = min(max(Double(n)/100, 0), 1); volChanged() } else { updateValues() }; focusWave()
@@ -388,8 +347,6 @@ final class PlayerViewController: NSViewController, NSWindowDelegate {
         srcBPMField.stringValue = "\(Int(sourceBPM))"
         tgtField.stringValue = "\(Int(targetBPM))"
         if sourceDuration > 0 { beatsField.stringValue = "\(Int((sourceBPM * sourceDuration / 60).rounded()))" }
-        loopPosSlider.doubleValue = player.loopA
-        loopPosField.stringValue = String(format: "%.2fs", player.loopA * player.duration)
     }
     private func timeText() -> String { "\(fmt(player.currentTime)) / \(fmt(player.regionDuration))" }
     private func fmt(_ t: TimeInterval) -> String { guard t.isFinite else { return "0:00.0" }; let d = Int((t*10).rounded(.down)); return String(format: "%d:%02d.%d", d/600, (d/10)%60, d%10) }
