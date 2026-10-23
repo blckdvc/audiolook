@@ -45,6 +45,7 @@ final class PlayerViewController: NSViewController, NSWindowDelegate {
     private var currentURL: URL?
     private var siblings: [URL] = []
     private var index = 0
+    private var keyMonitor: Any?
 
     private let gridDivs: [Double] = [0.25, 0.5, 1.0, 4.0]   // 1/16, 1/8, 1/4, mesure
 
@@ -286,6 +287,18 @@ final class PlayerViewController: NSViewController, NSWindowDelegate {
         reprocessTimer = Timer.scheduledTimer(withTimeInterval: 0.18, repeats: false) { [weak self] _ in self?.player.reprocess() }
     }
 
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        // Espace = lecture/pause tant que la fenêtre audiolook est active
+        // (on laisse passer l'espace quand on édite un champ texte).
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] e in
+            guard let self, self.view.window?.isKeyWindow == true else { return e }
+            if self.view.window?.firstResponder is NSText { return e }   // édition d'un champ
+            if e.keyCode == 49 { self.togglePlay(); return nil }         // 49 = barre d'espace
+            return e
+        }
+    }
+
     // Arrête la lecture quand on ferme la fenêtre (bouton rouge ou Échap).
     func windowWillClose(_ notification: Notification) { player.pause(); refresh() }
 
@@ -359,5 +372,8 @@ final class PlayerViewController: NSViewController, NSWindowDelegate {
         return parts.filter { !$0.isEmpty }.joined(separator: " · ")
     }
 
-    deinit { timer?.invalidate(); reprocessTimer?.invalidate(); analyzer.cancel(); player.stop() }
+    deinit {
+        timer?.invalidate(); reprocessTimer?.invalidate(); analyzer.cancel(); player.stop()
+        if let keyMonitor { NSEvent.removeMonitor(keyMonitor) }
+    }
 }
