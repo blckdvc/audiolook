@@ -12,12 +12,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var lastLoadedPath: String?
     private var followItem: NSMenuItem?
 
+    /// Dernière app « externe » passée au premier plan (hors LoopLook / Finder).
+    /// Sert au bouton « Importer dans le DAW actif » : au clic, LoopLook devient actif,
+    /// donc on vise l'app utilisée juste avant.
+    private(set) var lastDAWApp: NSRunningApplication?
+
     private let audioExts: Set<String> = ["wav","aif","aiff","aifc","caf","mp3","m4a","aac","flac","ogg","opus"]
 
     func applicationDidFinishLaunching(_ note: Notification) {
         setupStatusItem()
         registerHotKey()
         startPolling()
+        trackFrontmostApp()
+    }
+
+    // MARK: Suivi de l'app active (pour l'import DAW)
+
+    private func trackFrontmostApp() {
+        let own = Bundle.main.bundleIdentifier
+        NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main
+        ) { [weak self] note in
+            guard let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication else { return }
+            let bid = app.bundleIdentifier
+            if bid == own || bid == "com.apple.finder" { return }   // on ignore LoopLook et le Finder
+            self?.lastDAWApp = app
+        }
     }
 
     // MARK: Barre de menus

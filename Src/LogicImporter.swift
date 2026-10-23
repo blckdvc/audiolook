@@ -14,40 +14,95 @@ enum LogicImporter {
         catch { NSLog("export error \(error)"); return nil }
     }
 
-    /// Import automatique dans Logic Pro via scripting d'interface (menu Fichier > Importer > Fichier audio).
-    /// Dépend de la version/langue de Logic et nécessite l'autorisation d'accessibilité.
+    /// Import automatique dans le DAW actuellement au premier plan (Logic, Digital Performer, Live…).
+    /// Repère dans la barre de menus de l'app une commande « Import…Audio » (toutes langues :
+    /// `contains` est insensible à la casse), la déclenche puis saisit le chemin dans le sélecteur.
+    /// Nécessite l'autorisation d'accessibilité.
     @discardableResult
-    static func importIntoLogic(_ url: URL) -> (ok: Bool, message: String) {
-        let path = url.path
-        // tente FR puis EN pour les titres de menus
+    static func importIntoActiveDAW(_ url: URL) -> (ok: Bool, message: String) {
+        guard let app = (NSApp.delegate as? AppDelegate)?.lastDAWApp, let rawName = app.localizedName else {
+            return (false, "Aucun DAW actif détecté. Passe d'abord dans ton DAW (Logic, Digital Performer…), puis reviens cliquer sur Importer — ou glisse la pastille directement dedans.")
+        }
+        let name = esc(rawName)
+        let path = esc(url.path)
+        let bundleID = app.bundleIdentifier ?? ""
+        let activate = bundleID.isEmpty ? "tell application \"\(name)\" to activate"
+                                        : "tell application id \"\(esc(bundleID))\" to activate"
+
         let script = """
         set thePath to "\(path)"
-        tell application "Logic Pro" to activate
+        \(activate)
         delay 0.6
+        set didClick to false
         tell application "System Events"
-            tell process "Logic Pro"
-                set okMenu to false
-                try
-                    click menu item "Fichier audio…" of menu "Importer" of menu item "Importer" of menu "Fichier" of menu bar 1
-                    set okMenu to true
-                end try
-                if okMenu is false then
-                    try
-                        click menu item "Audio File…" of menu "Import" of menu item "Import" of menu "File" of menu bar 1
-                        set okMenu to true
-                    end try
+            tell process "\(name)"
+                -- Passe 1 : une commande d'import qui concerne l'audio (directe ou dans un sous-menu)
+                repeat with m in menu bar items of menu bar 1
+                    if (exists menu 1 of m) then
+                        repeat with mi in menu items of menu 1 of m
+                            set n to ""
+                            try
+                                set n to name of mi
+                            end try
+                            if n is not "" and n contains "Import" then
+                                if n contains "Audio" then
+                                    try
+                                        click mi
+                                        set didClick to true
+                                    end try
+                                else if (exists menu 1 of mi) then
+                                    repeat with sm in menu items of menu 1 of mi
+                                        set sn to ""
+                                        try
+                                            set sn to name of sm
+                                        end try
+                                        if sn is not "" and sn contains "Audio" then
+                                            try
+                                                click sm
+                                                set didClick to true
+                                            end try
+                                        end if
+                                        if didClick then exit repeat
+                                    end repeat
+                                end if
+                            end if
+                            if didClick then exit repeat
+                        end repeat
+                    end if
+                    if didClick then exit repeat
+                end repeat
+                -- Passe 2 : à défaut, n'importe quelle commande « Import… » directe (feuille)
+                if not didClick then
+                    repeat with m in menu bar items of menu bar 1
+                        if (exists menu 1 of m) then
+                            repeat with mi in menu items of menu 1 of m
+                                set n to ""
+                                try
+                                    set n to name of mi
+                                end try
+                                if n is not "" and n contains "Import" and not (exists menu 1 of mi) then
+                                    try
+                                        click mi
+                                        set didClick to true
+                                    end try
+                                end if
+                                if didClick then exit repeat
+                            end repeat
+                        end if
+                        if didClick then exit repeat
+                    end repeat
                 end if
-                if okMenu is false then return "menu_introuvable"
+                if not didClick then return "menu_introuvable"
+                -- Sélecteur de fichier : on saisit le chemin
                 delay 0.8
                 keystroke "g" using {command down, shift down}
                 delay 0.4
                 keystroke thePath
                 delay 0.3
                 keystroke return
-                delay 0.4
+                delay 0.5
                 keystroke return
                 delay 0.6
-                -- bouton Importer/Ouvrir de la fenêtre d'import
                 try
                     click button "Importer" of window 1
                 on error
@@ -57,7 +112,11 @@ enum LogicImporter {
                         try
                             click button "Import" of window 1
                         on error
-                            keystroke return
+                            try
+                                click button "Open" of window 1
+                            on error
+                                keystroke return
+                            end try
                         end try
                     end try
                 end try
@@ -69,20 +128,24 @@ enum LogicImporter {
         let result = NSAppleScript(source: script)?.executeAndReturnError(&err)
         if let err {
             let code = (err["NSAppleScriptErrorNumber"] as? Int) ?? 0
-            if code == -1743 { return (false, "Autorisation d'accessibilité requise pour piloter Logic (Réglages Système › Confidentialité › Accessibilité).") }
-            return (false, "Échec du script d'import (\(code)).")
+            if code == -1743 { return (false, "Autorisation d'accessibilité requise (Réglages Système › Confidentialité et sécurité › Accessibilité → coche LoopLook).") }
+            return (false, "Échec du script d'import dans \(rawName) (\(code)).")
         }
         let s = result?.stringValue ?? ""
-        if s == "ok" { return (true, "Import lancé dans Logic.") }
-        if s == "menu_introuvable" { return (false, "Menu d'import introuvable (version/langue de Logic différente). Utilise le glisser-déposer.") }
+        if s == "ok" { return (true, "Import lancé dans \(rawName).") }
+        if s == "menu_introuvable" { return (false, "Pas de commande d'import audio trouvée dans le menu de \(rawName). Glisse plutôt la pastille directement dans l'app.") }
         return (false, "Réponse inattendue : \(s)")
+    }
+
+    private static func esc(_ s: String) -> String {
+        s.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
     }
 }
 
 /// Petite pastille source d'un glisser-déposer : fournit à la volée le WAV traité.
 final class SampleDragView: NSView, NSDraggingSource {
     var provideURL: (() -> URL?)?
-    var label: String = "Glisser vers Logic / Finder"
+    var label: String = "Glisser vers un DAW / Finder"
 
     override init(frame: NSRect) { super.init(frame: frame); wantsLayer = true; setup() }
     required init?(coder: NSCoder) { super.init(coder: coder); wantsLayer = true; setup() }

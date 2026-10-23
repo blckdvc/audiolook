@@ -115,8 +115,9 @@ final class PlayerViewController: NSViewController {
         regionToggle.font = .systemFont(ofSize: 11)
         renderButton.title = "Rendre…"; renderButton.image = sym("square.and.arrow.down"); renderButton.imagePosition = .imageLeading
         renderButton.bezelStyle = .rounded; renderButton.controlSize = .small; renderButton.target = self; renderButton.action = #selector(renderReveal)
-        logicButton.title = "Importer dans Logic"; logicButton.image = sym("music.note"); logicButton.imagePosition = .imageLeading
-        logicButton.bezelStyle = .rounded; logicButton.controlSize = .small; logicButton.target = self; logicButton.action = #selector(importLogic)
+        logicButton.title = "Importer dans le DAW"; logicButton.image = sym("music.note"); logicButton.imagePosition = .imageLeading
+        logicButton.bezelStyle = .rounded; logicButton.controlSize = .small; logicButton.target = self; logicButton.action = #selector(importDAW)
+        logicButton.toolTip = "Importe le sample dans le DAW au premier plan (Logic, Digital Performer…)"
         let actions = NSStackView(views: [dragChip, NSView(), regionToggle, renderButton, logicButton])
         actions.orientation = .horizontal; actions.spacing = 10
 
@@ -317,10 +318,10 @@ final class PlayerViewController: NSViewController {
         guard let url = exportURL() else { NSSound.beep(); return }
         NSWorkspace.shared.activateFileViewerSelecting([url]); flash("Rendu : \(url.lastPathComponent)")
     }
-    @objc private func importLogic() {
+    @objc private func importDAW() {
         guard let url = exportURL() else { NSSound.beep(); return }
-        let res = LogicImporter.importIntoLogic(url); flash(res.message)
-        if !res.ok { let a = NSAlert(); a.messageText = "Import Logic"; a.informativeText = res.message + "\n\nTu peux aussi glisser la pastille directement dans Logic."; a.runModal() }
+        let res = LogicImporter.importIntoActiveDAW(url); flash(res.message)
+        if !res.ok { let a = NSAlert(); a.messageText = "Import dans le DAW"; a.informativeText = res.message; a.runModal() }
     }
 
     // MARK: UI refresh
