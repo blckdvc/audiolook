@@ -12,14 +12,20 @@ Pensé pour auditionner et préparer des samples avant de les glisser dans un DA
 - **Forme d'onde** avec tête de lecture ; clic pour se positionner.
 - **Boucle A/B** : deux poignées pour délimiter la région bouclée (fondu enchaîné, sans clic).
 - **Volume** temps réel.
-- **Vitesse** (50–200 %) — time‑stretch, hauteur inchangée.
-- **Transposition** (−24…+24 demi‑tons) — vitesse inchangée.
+- **Tempo (BPM)** — détection automatique du tempo ; cale le sample à un BPM cible
+  (time‑stretch, hauteur inchangée). BPM source éditable, ou saisie du nombre de temps.
+- **Transposition** (−24…+24 demi‑tons) — tempo inchangé.
+- **Grille magnétique** : les poignées A/B se calent sur la grille (1/16, 1/8, 1/4, mesure),
+  déduite du BPM.
 - **Désactiver le traitement** : joue l'original sans re‑rendu.
-- Réglages **conservés d'un fichier à l'autre** (volume / vitesse / pitch / bypass).
+- **Transparence** réglable de la fenêtre ; **barre de titre masquée**.
+- Valeurs saisissables au clavier (champs texte) à côté de chaque réglage.
+- Réglages **conservés d'un fichier à l'autre** (volume / tempo / pitch / bypass).
 - **Suivi de la sélection du Finder** : sélectionner un fichier audio ouvre et joue LoopLook
   automatiquement ; une sélection non‑audio arrête la lecture.
-- **Export vers un DAW** : glisser‑déposer du WAV traité (24 bits) vers Logic/Finder,
-  bouton « Rendre… », et import automatique dans Logic.
+- **Export vers un DAW** : glisser‑déposer du WAV traité (24 bits) vers n'importe quel DAW
+  (ou le Finder), bouton « Rendre… », et **import dans le DAW au premier plan**
+  (Logic, Digital Performer…).
 
 ## Installation (DMG)
 
@@ -42,12 +48,15 @@ une icône forme d'onde apparaît en haut à droite. Sélectionne un fichier aud
 | ←/→ | Fichier précédent / suivant du dossier |
 | Échap | Fermer la fenêtre |
 
-## Export vers Logic
+## Export vers un DAW
 
-- **Glisser vers Logic / Finder** : tire la pastille dans l'arrangement de Logic (ou le Finder).
+- **Glisser vers un DAW / Finder** : tire la pastille dans l'arrangement de ton DAW (ou le Finder).
 - **Rendre…** : écrit le WAV traité et le révèle dans le Finder.
-- **Importer dans Logic** : import automatique (Logic ouvert). Pilote *File > Import > Audio File* ;
-  nécessite d'autoriser LoopLook dans *Réglages Système › Confidentialité et sécurité › Accessibilité*.
+- **Importer dans le DAW** : import automatique dans le DAW **au premier plan** (celui utilisé juste
+  avant de cliquer — Logic, Digital Performer…). LoopLook repère une commande d'import audio dans
+  le menu de l'app et y saisit le fichier ; nécessite d'autoriser LoopLook dans
+  *Réglages Système › Confidentialité et sécurité › Accessibilité*. Selon le DAW, le glisser‑déposer
+  reste la méthode la plus fiable.
 - Case **Région A/B** : limite l'export/le glisser à la région bouclée.
 
 ## Compilation (sans Xcode)
@@ -73,9 +82,10 @@ Src/
   PlayerViewController.swift interface (forme d'onde, réglages, export)
   LoopPlayer.swift          lecture en boucle A/B, fondus, re-rendu
   SampleProcessor.swift     lecture fichier + rendu Signalsmith + export WAV
-  WaveformView.swift        forme d'onde + poignées A/B
+  BPMDetector.swift         détection de tempo (enveloppe RMS + autocorrélation)
+  WaveformView.swift        forme d'onde + poignées A/B + grille magnétique
   WaveformAnalyzer.swift    calcul pics/RMS
-  LogicImporter.swift       export WAV, drag source, import Logic
+  LogicImporter.swift       export WAV, drag source, import dans le DAW actif
   StretchBridge.{h,cpp}     pont C vers Signalsmith Stretch
   Bridging.h                bridging header Swift/C
 Vendor/                     Signalsmith Stretch + Linear (headers)
