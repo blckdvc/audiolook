@@ -8,6 +8,8 @@ final class WaveformView: NSView {
     var progress: Double = 0 { didSet { if oldValue != progress { needsDisplay = true } } }
     var loopA: Double = 0 { didSet { needsDisplay = true } }
     var loopB: Double = 1 { didSet { needsDisplay = true } }
+    var gridEnabled = false { didSet { needsDisplay = true } }
+    var gridSpacing: Double = 0 { didSet { needsDisplay = true } }   // fraction 0..1 entre deux lignes
 
     var onSeek: ((Double) -> Void)?
     var onLoopChange: ((Double, Double) -> Void)?
@@ -24,7 +26,7 @@ final class WaveformView: NSView {
         guard let ctx = NSGraphicsContext.current?.cgContext else { return }
         let b = bounds
         let bg = NSBezierPath(roundedRect: b, xRadius: 10, yRadius: 10)
-        NSColor.white.withAlphaComponent(0.04).setFill(); bg.fill(); bg.addClip()
+        NSColor.labelColor.withAlphaComponent(0.05).setFill(); bg.fill(); bg.addClip()
 
         let midY = b.midY, half = b.height / 2 - 8
         let xA = b.width * CGFloat(loopA), xB = b.width * CGFloat(loopB)
@@ -34,8 +36,20 @@ final class WaveformView: NSView {
         ctx.fill(CGRect(x: 0, y: 0, width: xA, height: b.height))
         ctx.fill(CGRect(x: xB, y: 0, width: b.width - xB, height: b.height))
 
-        NSColor.white.withAlphaComponent(0.10).setFill()
+        NSColor.labelColor.withAlphaComponent(0.12).setFill()
         ctx.fill(CGRect(x: b.minX, y: midY - 0.5, width: b.width, height: 1))
+
+        if gridEnabled && gridSpacing > 0.0005 {
+            var g = gridSpacing
+            var idx = 1
+            while g < 1.0 {
+                let x = b.width * CGFloat(g)
+                let strong = (idx % 4 == 0)   // repère plus marqué toutes les 4 subdivisions
+                NSColor.labelColor.withAlphaComponent(strong ? 0.30 : 0.14).setFill()
+                ctx.fill(CGRect(x: x, y: 0, width: strong ? 1 : 0.5, height: b.height))
+                g += gridSpacing; idx += 1
+            }
+        }
 
         if !peaks.isEmpty {
             let scale = window?.backingScaleFactor ?? 2
@@ -71,7 +85,7 @@ final class WaveformView: NSView {
 
         // tête de lecture
         let playedX = b.width * CGFloat(progress)
-        NSColor.white.setFill()
+        NSColor.labelColor.setFill()
         ctx.fill(CGRect(x: min(max(playedX, 0), b.width - 1.5), y: b.minY, width: 1.5, height: b.height))
     }
 
@@ -97,10 +111,15 @@ final class WaveformView: NSView {
         let f = Double(min(max(p.x / bounds.width, 0), 1))
         progress = f; onSeek?(f)
     }
+    private func snap(_ f: Double) -> Double {
+        guard gridEnabled, gridSpacing > 0.0005 else { return f }
+        let k = (f / gridSpacing).rounded()
+        return min(max(k * gridSpacing, 0), 1)
+    }
     private func updateHandles(_ p: NSPoint) {
-        let f = Double(min(max(p.x / bounds.width, 0), 1))
-        if drag == .handleA { loopA = min(f, loopB - 0.01) }
-        else { loopB = max(f, loopA + 0.01) }
+        let f = snap(Double(min(max(p.x / bounds.width, 0), 1)))
+        if drag == .handleA { loopA = min(f, loopB - 0.001) }
+        else { loopB = max(f, loopA + 0.001) }
         onLoopChange?(loopA, loopB)
     }
 }
