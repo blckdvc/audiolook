@@ -17,8 +17,8 @@ Pensé pour auditionner et préparer des samples avant de les glisser dans un DA
 - **Transposition** (−24…+24 demi‑tons) — tempo inchangé.
 - **Grille magnétique** : les poignées A/B se calent sur la grille (1/16, 1/8, 1/4, mesure),
   déduite du BPM.
-- **Curseur « Position »** : déplace toute la région de boucle d'un coup (A et B ensemble, longueur
-  conservée), au lieu de régler chaque poignée.
+- **Déplacement de la boucle** : attrape la **barre en haut, entre A et B**, sur la forme d'onde
+  pour glisser toute la région d'un coup (longueur conservée) — librement, ou aimantée à la grille.
 - **Désactiver le traitement** : joue l'original sans re‑rendu.
 - La **lecture s'arrête** quand on ferme la fenêtre.
 - **Transparence** réglable de la fenêtre ; **barre de titre masquée**.
