@@ -37,8 +37,8 @@ cat > "$APP/Contents/Info.plist" <<'PL'
   <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
   <key>CFBundleName</key><string>audiolook</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleShortVersionString</key><string>1.0.3</string>
-  <key>CFBundleVersion</key><string>4</string>
+  <key>CFBundleShortVersionString</key><string>1.0.4</string>
+  <key>CFBundleVersion</key><string>5</string>
   <key>LSMinimumSystemVersion</key><string>13.0</string>
   <key>LSApplicationCategoryType</key><string>public.app-category.music</string>
   <key>LSUIElement</key><true/>
@@ -95,4 +95,4 @@ rm -rf "$DEST"; cp -R "$APP" "$DEST"; xattr -cr "$DEST" || true
 /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$DEST" || true
 echo "✓ Installé : $DEST"
 open "$DEST"
-echo "→ Lancé. Icône forme d'onde dans la barre de menus. Raccourci : ⌥Espace sur un fichier audio sélectionné dans le Finder."
+echo "→ Lancé. Icône forme d'onde dans la barre de menus. Sélectionne un fichier audio dans le Finder pour l'ouvrir."

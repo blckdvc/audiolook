@@ -31,7 +31,8 @@ Free and open-source 🙂 — if you feel like it, buy me a few tokens:
 - **Export**: drag-and-drop the processed WAV (24-bit) into any DAW (or the Finder) — drop it
   exactly where you want it in the arrangement — plus a **“Render…”** button that writes the
   WAV and reveals it in the Finder.
-- Settings **kept from one file to the next** (volume / tempo / pitch / bypass).
+- Settings **kept from one file to the next** (volume / pitch / bypass). The tempo resets to
+  each sample's own detected BPM.
 
 ## Install (DMG)
 

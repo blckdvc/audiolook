@@ -54,6 +54,9 @@ final class SampleDragView: NSView, NSDraggingSource {
         text.stringValue = label
     }
 
+    // Tout le bouton est zone de glisser (sinon l'icône et le texte captent le clic).
+    override func hitTest(_ point: NSPoint) -> NSView? { frame.contains(point) ? self : nil }
+
     override func mouseDown(with e: NSEvent) {
         guard let url = provideURL?() else { NSSound.beep(); return }
         let item = NSDraggingItem(pasteboardWriter: url as NSURL)

@@ -22,7 +22,6 @@ final class PlayerViewController: NSViewController, NSWindowDelegate {
     private var sourceBPM: Double = 120
     private var targetBPM: Double = 120
     private var sourceDuration: Double = 0
-    private var tempoInitialized = false
 
     // Grille
     private let gridToggle = NSButton(checkboxWithTitle: Lang.t("Snap", "Aimanter"), target: nil, action: nil)
@@ -52,31 +51,29 @@ final class PlayerViewController: NSViewController, NSWindowDelegate {
     private func sym(_ n: String) -> NSImage { NSImage(systemSymbolName: n, accessibilityDescription: nil) ?? NSImage(size: NSSize(width: 1, height: 1)) }
 
     override func loadView() {
-        let root = NSView(frame: NSRect(x: 0, y: 0, width: 580, height: 560)); root.wantsLayer = true
+        let root = NSView(frame: NSRect(x: 0, y: 0, width: 600, height: 470)); root.wantsLayer = true
         titleLabel.font = .systemFont(ofSize: 15, weight: .semibold); titleLabel.lineBreakMode = .byTruncatingMiddle
         infoLabel.font = .monospacedDigitSystemFont(ofSize: 11, weight: .regular); infoLabel.textColor = .secondaryLabelColor
         timeLabel.font = .monospacedDigitSystemFont(ofSize: 12, weight: .medium); timeLabel.textColor = .secondaryLabelColor
 
-        configure(playButton, "play.fill", "Lecture / pause", #selector(togglePlay))
-        configure(loopButton, "repeat", "Boucle", #selector(toggleLoop)); loopButton.setButtonType(.toggle); loopButton.state = .on
+        configure(playButton, "play.fill", #selector(togglePlay))
+        configure(loopButton, "repeat", #selector(toggleLoop)); loopButton.setButtonType(.toggle); loopButton.state = .on
         fullButton.title = Lang.t("Whole loop", "Boucle entière"); fullButton.bezelStyle = .rounded; fullButton.controlSize = .small
         fullButton.target = self; fullButton.action = #selector(resetLoop); fullButton.font = .systemFont(ofSize: 11)
 
         waveform.onSeek = { [weak self] f in self?.player.seek(toGlobal: f); self?.refresh() }
         waveform.onLoopChange = { [weak self] a, b in self?.player.setLoopRegion(a: a, b: b); self?.refresh() }
 
-        let header = NSStackView(views: [titleLabel, infoLabel]); header.orientation = .vertical; header.alignment = .leading; header.spacing = 2
-        let transport = NSStackView(views: [playButton, loopButton, fullButton, NSView(), timeLabel]); transport.orientation = .horizontal; transport.spacing = 10
+        let header = vstack([titleLabel, infoLabel], 2)
+        let transport = hstack([playButton, loopButton, fullButton, NSView(), timeLabel], 10)
 
+        // Sliders (plus courts : disposition en deux colonnes)
         volSlider.minValue = 0; volSlider.maxValue = 1; volSlider.doubleValue = 1; volSlider.target = self; volSlider.action = #selector(volChanged)
         pitchSlider.minValue = -24; pitchSlider.maxValue = 24; pitchSlider.doubleValue = 0; pitchSlider.target = self; pitchSlider.action = #selector(pitchChanged)
         pitchSlider.numberOfTickMarks = 49; pitchSlider.allowsTickMarkValuesOnly = true
         tgtSlider.minValue = 40; tgtSlider.maxValue = 220; tgtSlider.doubleValue = 120; tgtSlider.target = self; tgtSlider.action = #selector(tgtSliderChanged)
-        for sl in [volSlider, pitchSlider, tgtSlider] {
-            sl.controlSize = .small
-            sl.setContentHuggingPriority(.required, for: .horizontal)
-            sl.widthAnchor.constraint(equalToConstant: 150).isActive = true
-        }
+        for sl in [volSlider, pitchSlider] { sl.controlSize = .small; sl.setContentHuggingPriority(.required, for: .horizontal); sl.widthAnchor.constraint(equalToConstant: 104).isActive = true }
+        tgtSlider.controlSize = .small; tgtSlider.setContentHuggingPriority(.required, for: .horizontal); tgtSlider.widthAnchor.constraint(equalToConstant: 92).isActive = true
 
         volValue.target = self; volValue.action = #selector(volFieldEdited)
         pitchValue.target = self; pitchValue.action = #selector(pitchFieldEdited)
@@ -88,48 +85,52 @@ final class PlayerViewController: NSViewController, NSWindowDelegate {
             v.isEditable = true; v.isBordered = true; v.bezelStyle = .roundedBezel; v.focusRingType = .none
             v.setContentHuggingPriority(.required, for: .horizontal)
         }
-        for v in [volValue, pitchValue, tgtField] { v.widthAnchor.constraint(equalToConstant: 64).isActive = true }
-        srcBPMField.widthAnchor.constraint(equalToConstant: 56).isActive = true
-        beatsField.widthAnchor.constraint(equalToConstant: 44).isActive = true
-
-        let arrow = NSTextField(labelWithString: "→"); arrow.textColor = .secondaryLabelColor
-        let tempoRow = NSStackView(views: [icon("metronome.fill"), label("BPM"), srcBPMField, arrow, tgtSlider, tgtField, resetBtn(#selector(resetTempo))])
-        tempoRow.orientation = .horizontal; tempoRow.spacing = 8
-
-        let controls = NSStackView(views: [
-            rowFixed(icon("speaker.wave.2.fill"), volSlider, volValue, resetBtn(#selector(resetVol))),
-            tempoRow,
-            rowFixed(icon("tuningfork"), pitchSlider, pitchValue, resetBtn(#selector(resetPitch))),
-        ]); controls.orientation = .vertical; controls.spacing = 8; controls.alignment = .leading
+        for v in [volValue, pitchValue] { v.widthAnchor.constraint(equalToConstant: 56).isActive = true }
+        srcBPMField.widthAnchor.constraint(equalToConstant: 46).isActive = true
+        tgtField.widthAnchor.constraint(equalToConstant: 46).isActive = true
+        beatsField.widthAnchor.constraint(equalToConstant: 42).isActive = true
+        srcBPMField.toolTip = Lang.t("Detected (source) tempo", "Tempo détecté (d'origine)")
+        tgtField.toolTip = Lang.t("Target tempo", "Tempo cible")
+        beatsField.toolTip = Lang.t("Number of beats in the loop (adjusts the source BPM)", "Nombre de temps de la boucle (ajuste le BPM d'origine)")
 
         // Grille
         gridToggle.target = self; gridToggle.action = #selector(gridChanged); gridToggle.font = .systemFont(ofSize: 11)
         gridPopup.addItems(withTitles: ["1/16", "1/8", "1/4", Lang.t("Bar", "Mesure")]); gridPopup.selectItem(at: 2)
         gridPopup.controlSize = .small; gridPopup.font = .systemFont(ofSize: 11); gridPopup.target = self; gridPopup.action = #selector(gridChanged)
-        let beatsLabel = label(Lang.t("loop =", "boucle =")); let beatsUnit = label(Lang.t("beats", "temps"))
-        let gridRow = NSStackView(views: [icon("grid"), gridToggle, gridPopup, NSView(), beatsLabel, beatsField, beatsUnit])
-        gridRow.orientation = .horizontal; gridRow.spacing = 8
 
-        dragChip.provideURL = { [weak self] in self?.exportURL() }
-        dragChip.translatesAutoresizingMaskIntoConstraints = false
-        regionToggle.font = .systemFont(ofSize: 11)
-        renderButton.title = Lang.t("Render…", "Rendre…"); renderButton.image = sym("square.and.arrow.down"); renderButton.imagePosition = .imageLeading
-        renderButton.bezelStyle = .rounded; renderButton.controlSize = .small; renderButton.target = self; renderButton.action = #selector(renderReveal)
-        let actions = NSStackView(views: [dragChip, NSView(), regionToggle, renderButton])
-        actions.orientation = .horizontal; actions.spacing = 10
+        // Deux colonnes : [Volume / Pitch]  |  [Tempo / Grille]
+        let arrow = label("→")
+        let volCell   = cell([icon("speaker.wave.2.fill"), label(Lang.t("Volume", "Volume")), volSlider, volValue, resetBtn(#selector(resetVol))])
+        let pitchCell = cell([icon("tuningfork"), label(Lang.t("Pitch", "Pitch")), pitchSlider, pitchValue, resetBtn(#selector(resetPitch))])
+        let tempoCell = cell([icon("metronome.fill"), srcBPMField, arrow, tgtSlider, tgtField, resetBtn(#selector(resetTempo))])
+        let snapCell  = cell([icon("grid"), gridToggle, gridPopup, beatsField, label(Lang.t("beats", "temps"))])
+        let leftCol  = vstack([volCell, pitchCell], 8)
+        let rightCol = vstack([tempoCell, snapCell], 8)
+        let columns = hstack([leftCol, NSView(), rightCol], 12)
 
+        let sep = NSBox(); sep.boxType = .separator; sep.translatesAutoresizingMaskIntoConstraints = false
+
+        // Bas : bypass + région A/B, et transparence à droite (hors du flux audio)
         bypassToggle.target = self; bypassToggle.action = #selector(toggleBypass); bypassToggle.font = .systemFont(ofSize: 11)
-        let bypassRow = NSStackView(views: [bypassToggle]); bypassRow.orientation = .horizontal
-
-        // Opacité
+        regionToggle.font = .systemFont(ofSize: 11)
         opSlider.minValue = 0.35; opSlider.maxValue = 1; opSlider.doubleValue = 1
         opSlider.controlSize = .small; opSlider.target = self; opSlider.action = #selector(opChanged)
-        opSlider.widthAnchor.constraint(equalToConstant: 120).isActive = true
+        opSlider.setContentHuggingPriority(.required, for: .horizontal)
+        opSlider.widthAnchor.constraint(equalToConstant: 90).isActive = true
         opValue.font = .monospacedDigitSystemFont(ofSize: 11, weight: .medium); opValue.textColor = .secondaryLabelColor
+        opValue.setContentHuggingPriority(.required, for: .horizontal)
         opValue.widthAnchor.constraint(equalToConstant: 46).isActive = true
-        let opRow = NSStackView(views: [icon("circle.lefthalf.filled"), opSlider, opValue]); opRow.orientation = .horizontal; opRow.spacing = 8
+        let opIcon = icon("circle.lefthalf.filled"); opIcon.toolTip = Lang.t("Window transparency", "Transparence de la fenêtre")
+        let botRow = hstack([bypassToggle, regionToggle, NSView(), opIcon, opSlider, opValue], 10)
 
-        let stack = NSStackView(views: [header, waveform, transport, controls, gridRow, bypassRow, opRow, actions])
+        // Export
+        dragChip.provideURL = { [weak self] in self?.exportURL() }
+        dragChip.translatesAutoresizingMaskIntoConstraints = false
+        renderButton.title = Lang.t("Render…", "Rendre…"); renderButton.image = sym("square.and.arrow.down"); renderButton.imagePosition = .imageLeading
+        renderButton.bezelStyle = .rounded; renderButton.controlSize = .small; renderButton.target = self; renderButton.action = #selector(renderReveal)
+        let actions = hstack([dragChip, NSView(), renderButton], 10)
+
+        let stack = NSStackView(views: [header, waveform, transport, columns, sep, botRow, actions])
         stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 12
         stack.translatesAutoresizingMaskIntoConstraints = false
         root.addSubview(stack)
@@ -141,9 +142,11 @@ final class PlayerViewController: NSViewController, NSWindowDelegate {
             stack.bottomAnchor.constraint(equalTo: root.bottomAnchor, constant: -18),
             waveform.widthAnchor.constraint(equalTo: stack.widthAnchor),
             transport.widthAnchor.constraint(equalTo: stack.widthAnchor),
-            gridRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
+            columns.widthAnchor.constraint(equalTo: stack.widthAnchor),
+            sep.widthAnchor.constraint(equalTo: stack.widthAnchor),
+            botRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
             actions.widthAnchor.constraint(equalTo: stack.widthAnchor),
-            waveform.heightAnchor.constraint(greaterThanOrEqualToConstant: 120),
+            waveform.heightAnchor.constraint(greaterThanOrEqualToConstant: 150),
         ])
         waveform.setContentHuggingPriority(.defaultLow, for: .vertical)
         view = root
@@ -162,10 +165,14 @@ final class PlayerViewController: NSViewController, NSWindowDelegate {
         r.isBordered = false; r.imagePosition = .imageOnly; r.contentTintColor = .tertiaryLabelColor
         r.widthAnchor.constraint(equalToConstant: 20).isActive = true; return r
     }
-    private func rowFixed(_ icon: NSView, _ slider: NSSlider, _ value: NSTextField, _ reset: NSButton) -> NSView {
-        let st = NSStackView(views: [icon, slider, value, reset]); st.orientation = .horizontal; st.spacing = 8; return st
+    private func hstack(_ v: [NSView], _ sp: CGFloat = 8) -> NSStackView {
+        let s = NSStackView(views: v); s.orientation = .horizontal; s.spacing = sp; return s
     }
-    private func configure(_ b: NSButton, _ symbol: String, _ label: String, _ action: Selector) {
+    private func vstack(_ v: [NSView], _ sp: CGFloat = 8) -> NSStackView {
+        let s = NSStackView(views: v); s.orientation = .vertical; s.spacing = sp; s.alignment = .leading; return s
+    }
+    private func cell(_ v: [NSView]) -> NSStackView { hstack(v, 6) }
+    private func configure(_ b: NSButton, _ symbol: String, _ action: Selector) {
         b.bezelStyle = .regularSquare; b.isBordered = false; b.imagePosition = .imageOnly; b.image = sym(symbol)
         b.symbolConfiguration = NSImage.SymbolConfiguration(pointSize: 16, weight: .semibold); b.contentTintColor = .controlAccentColor
         b.target = self; b.action = action
@@ -197,7 +204,8 @@ final class PlayerViewController: NSViewController, NSWindowDelegate {
                 guard let self else { return }
                 self.sourceDuration = Double(src.frameCount) / src.sampleRate
                 self.sourceBPM = bpm
-                if !self.tempoInitialized { self.targetBPM = bpm; self.tempoInitialized = true }
+                self.targetBPM = bpm                 // chaque sample repart à son tempo natif
+                self.tgtSlider.doubleValue = bpm
                 // applique les traitements courants AVANT le rendu
                 self.player.bypass = (self.bypassToggle.state == .on)
                 self.player.setRate(Float(self.rateFromBPM()))
