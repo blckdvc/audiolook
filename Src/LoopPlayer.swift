@@ -144,14 +144,14 @@ final class LoopPlayer {
 
         let xf = min(xfadeFrames, N / 4)
         if loopEnabled && N > xf * 2 + 16 {
-            let loopLen = N - xf
-            let offset = min(max(Int(((gg - loopA) * Double(L)).rounded()), 0), loopLen - 1)
-            // un seul buffer bouclé à fondu enchaîné (pivoté pour démarrer à la position voulue)
-            if var body = makeLoopBody(processed, aF: aF, bF: bF, xf: xf) {
-                if offset > 0 { body = rotate(body, by: offset) ?? body }
+            // un seul buffer bouclé (l'attaque du début est préservée, voir makeLoopBody)
+            if let body0 = makeLoopBody(processed, aF: aF, bF: bF, xf: xf) {
+                let bodyLen = Int(body0.frameLength)
+                let offset = min(max(Int(((gg - loopA) * Double(L)).rounded()), 0), bodyLen - 1)
+                let body = offset > 0 ? (rotate(body0, by: offset) ?? body0) : body0
                 node.scheduleBuffer(body, at: nil, options: .loops, completionCallbackType: .dataConsumed) { _ in }
+                subLen = bodyLen; bufferStartFrame = aF; offsetInSub = offset
             }
-            subLen = loopLen; bufferStartFrame = aF; offsetInSub = offset
         } else {
             // lecture simple (boucle off ou région trop courte)
             let offset = min(max(Int(((gg - loopA) * Double(L)).rounded()), 0), N - 1)
@@ -227,20 +227,70 @@ final class LoopPlayer {
         return sub
     }
 
-    /// Buffer de boucle à fondu enchaîné (longueur N-xf) : le raccord fin→début est continu.
+    /// Buffer de boucle en préservant l'attaque du début (le kick, etc.).
+    /// Stratégie par ordre de priorité :
+    ///  1. raccord fin→début déjà quasi continu (vraie boucle) → aucun fondu, tête 100 % intacte ;
+    ///  2. audio disponible avant la région (A>0) → la queue fond vers ce « pré-roll » → tête intacte ;
+    ///  3. la région démarre quasi au silence → la queue fond vers 0, l'attaque repart de zéro naturellement ;
+    ///  4. sinon (démarrage non nul, pas de pré-roll) → fondu enchaîné tête/queue classique (anti-clic).
     private func makeLoopBody(_ buf: AVAudioPCMBuffer, aF: Int, bF: Int, xf: Int) -> AVAudioPCMBuffer? {
         let N = bF - aF
         guard N > xf * 2, let src = buf.floatChannelData else { return nil }
+        let ch = Int(buf.format.channelCount)
+
+        // mesures : discontinuité au raccord, et niveau au tout début
+        var seam: Float = 0, headLevel: Float = 0
+        let probe = min(xf, 64)
+        for c in 0..<ch {
+            let s = src[c] + aF
+            seam += abs(s[0] - s[N - 1])
+            for i in 0..<probe { headLevel += abs(s[i]) }
+        }
+        seam /= Float(ch)
+        headLevel /= Float(max(1, probe * ch))
+
+        let seamSmooth = seam < 0.03            // boucle déjà propre → pas besoin de fondu
+        let havePreroll = aF >= xf
+        let silentHead = headLevel < 0.03
+
+        if seamSmooth {
+            // longueur N exacte, tout intact
+            guard let out = AVAudioPCMBuffer(pcmFormat: buf.format, frameCapacity: AVAudioFrameCount(N)),
+                  let dst = out.floatChannelData else { return nil }
+            for c in 0..<ch { dst[c].update(from: src[c] + aF, count: N) }
+            out.frameLength = AVAudioFrameCount(N)
+            return out
+        }
+
+        if havePreroll || silentHead {
+            // longueur N : tête (attaque) intacte, seule la queue est traitée
+            guard let out = AVAudioPCMBuffer(pcmFormat: buf.format, frameCapacity: AVAudioFrameCount(N)),
+                  let dst = out.floatChannelData else { return nil }
+            for c in 0..<ch {
+                let s = src[c]
+                let d = dst[c]
+                for i in 0..<(N - xf) { d[i] = s[aF + i] }          // tête + corps intacts
+                for i in 0..<xf {
+                    let t = (Double(i) + 0.5) / Double(xf)
+                    let wOut = Float(cos(0.5 * Double.pi * t))       // la vraie queue s'efface
+                    let tail = s[aF + N - xf + i] * wOut
+                    // matière entrante : pré-roll (juste avant A) si dispo, sinon rien (silence)
+                    let inc = havePreroll ? s[aF - xf + i] * Float(sin(0.5 * Double.pi * t)) : 0
+                    d[N - xf + i] = tail + inc
+                }
+            }
+            out.frameLength = AVAudioFrameCount(N)
+            return out
+        }
+
+        // repli anti-clic : fondu enchaîné tête/queue (longueur N-xf) — atténue un peu l'attaque
         let loopLen = N - xf
         guard let out = AVAudioPCMBuffer(pcmFormat: buf.format, frameCapacity: AVAudioFrameCount(loopLen)),
               let dst = out.floatChannelData else { return nil }
-        let ch = Int(buf.format.channelCount)
         for c in 0..<ch {
             let s = src[c] + aF
             let d = dst[c]
-            // milieu
             for i in xf..<loopLen { d[i] = s[i] }
-            // raccord : début (fade-in) mixé avec la queue (fade-out), puissance constante
             for i in 0..<xf {
                 let t = (Double(i) + 0.5) / Double(xf)
                 let wIn = Float(sin(0.5 * Double.pi * t))
