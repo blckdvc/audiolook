@@ -7,6 +7,11 @@ Pensé pour auditionner et préparer des samples avant de les glisser dans un DA
 ![audiolook — fenêtre principale](docs/screenshot-main.jpg)
 ![audiolook — région de boucle A/B](docs/screenshot-loop-ab.jpg)
 
+### Soutenir
+Projet gratuit et open‑source 🙂 — si le cœur t'en dit, offre‑moi quelques tokens :
+
+[![Buy me tokens](docs/buy-me-tokens.png)](https://paypal.me/lbenh)
+
 ## Fonctions
 
 - **Forme d'onde** avec tête de lecture ; clic pour se positionner.
