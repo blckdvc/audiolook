@@ -1,0 +1,20 @@
+# Artéfacts de build
+build/
+build-clt/
+*.o
+Vendor/test/sltest
+
+# Logs / scripts de diagnostic (générés)
+*.log
+diag.command
+gitcheck.command
+test-cpp.command
+
+# macOS
+.DS_Store
+
+# Échantillons de test
+test/
+
+# archive de transfert
+*.tgz
