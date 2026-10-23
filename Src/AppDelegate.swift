@@ -64,10 +64,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         else {
             let c = PlayerViewController()
             let w = NSWindow(contentViewController: c)
-            w.styleMask = [.titled, .closable, .miniaturizable, .resizable]
+            w.styleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
+            w.titleVisibility = .hidden                 // barre de titre masquée
+            w.titlebarAppearsTransparent = true
             w.title = "LoopLook"
-            w.isMovableByWindowBackground = false     // évite que la forme d'onde déplace la fenêtre
-            w.setContentSize(NSSize(width: 580, height: 470))
+            w.isMovableByWindowBackground = true        // on déplace par le fond (la forme d'onde ne bouge pas la fenêtre)
+            w.setContentSize(NSSize(width: 580, height: 520))
             w.center()
             w.level = .floating
             let wc = NSWindowController(window: w)

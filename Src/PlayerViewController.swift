@@ -11,9 +11,11 @@ final class PlayerViewController: NSViewController {
     private let fullButton = NSButton()
 
     private let volSlider = NSSlider(), stretchSlider = NSSlider(), pitchSlider = NSSlider()
-    private let volValue = NSTextField(labelWithString: "100 %")
-    private let stretchValue = NSTextField(labelWithString: "100 %")
-    private let pitchValue = NSTextField(labelWithString: "0 st")
+    private let volValue = NSTextField()
+    private let stretchValue = NSTextField()
+    private let pitchValue = NSTextField()
+    private let opSlider = NSSlider()
+    private let opValue = NSTextField(labelWithString: "100 %")
 
     private let dragChip = SampleDragView()
     private let regionToggle = NSButton(checkboxWithTitle: "Région A/B", target: nil, action: nil)
@@ -32,7 +34,7 @@ final class PlayerViewController: NSViewController {
     private func sym(_ n: String) -> NSImage { NSImage(systemSymbolName: n, accessibilityDescription: nil) ?? NSImage(size: NSSize(width: 1, height: 1)) }
 
     override func loadView() {
-        let root = NSView(frame: NSRect(x: 0, y: 0, width: 580, height: 470)); root.wantsLayer = true
+        let root = NSView(frame: NSRect(x: 0, y: 0, width: 580, height: 520)); root.wantsLayer = true
         titleLabel.font = .systemFont(ofSize: 15, weight: .semibold); titleLabel.lineBreakMode = .byTruncatingMiddle
         infoLabel.font = .monospacedDigitSystemFont(ofSize: 11, weight: .regular); infoLabel.textColor = .secondaryLabelColor
         timeLabel.font = .monospacedDigitSystemFont(ofSize: 12, weight: .medium); timeLabel.textColor = .secondaryLabelColor
@@ -52,15 +54,34 @@ final class PlayerViewController: NSViewController {
         stretchSlider.minValue = 0.5; stretchSlider.maxValue = 2.0; stretchSlider.doubleValue = 1.0; stretchSlider.target = self; stretchSlider.action = #selector(stretchChanged)
         pitchSlider.minValue = -24; pitchSlider.maxValue = 24; pitchSlider.doubleValue = 0; pitchSlider.target = self; pitchSlider.action = #selector(pitchChanged)
         pitchSlider.numberOfTickMarks = 49; pitchSlider.allowsTickMarkValuesOnly = true
+        for sl in [volSlider, stretchSlider, pitchSlider] {
+            sl.controlSize = .small
+            sl.setContentHuggingPriority(.required, for: .horizontal)
+            sl.widthAnchor.constraint(equalToConstant: 170).isActive = true
+        }
+        volValue.target = self; volValue.action = #selector(volFieldEdited)
+        stretchValue.target = self; stretchValue.action = #selector(stretchFieldEdited)
+        pitchValue.target = self; pitchValue.action = #selector(pitchFieldEdited)
         for v in [volValue, stretchValue, pitchValue] {
-            v.font = .monospacedDigitSystemFont(ofSize: 11, weight: .medium); v.textColor = .secondaryLabelColor; v.alignment = .right
-            v.setContentHuggingPriority(.required, for: .horizontal); v.widthAnchor.constraint(equalToConstant: 56).isActive = true
+            v.font = .monospacedDigitSystemFont(ofSize: 11, weight: .medium); v.alignment = .right
+            v.isEditable = true; v.isBordered = true; v.bezelStyle = .roundedBezel; v.focusRingType = .none
+            v.setContentHuggingPriority(.required, for: .horizontal); v.widthAnchor.constraint(equalToConstant: 64).isActive = true
         }
         let controls = NSStackView(views: [
             row("Volume", "speaker.wave.2.fill", volSlider, volValue, #selector(resetVol)),
             row("Vitesse", "metronome.fill", stretchSlider, stretchValue, #selector(resetStretch)),
             row("Transposition", "tuningfork", pitchSlider, pitchValue, #selector(resetPitch)),
         ]); controls.orientation = .vertical; controls.spacing = 8; controls.alignment = .leading
+
+        // Opacité de la fenêtre
+        opSlider.minValue = 0.35; opSlider.maxValue = 1; opSlider.doubleValue = 1
+        opSlider.controlSize = .small; opSlider.target = self; opSlider.action = #selector(opChanged)
+        opSlider.widthAnchor.constraint(equalToConstant: 120).isActive = true
+        opValue.font = .monospacedDigitSystemFont(ofSize: 11, weight: .medium); opValue.textColor = .secondaryLabelColor
+        opValue.widthAnchor.constraint(equalToConstant: 46).isActive = true
+        let opIcon = NSImageView(image: sym("circle.lefthalf.filled")); opIcon.contentTintColor = .secondaryLabelColor
+        opIcon.widthAnchor.constraint(equalToConstant: 16).isActive = true
+        let opRow = NSStackView(views: [opIcon, opSlider, opValue]); opRow.orientation = .horizontal; opRow.spacing = 8
 
         dragChip.provideURL = { [weak self] in self?.exportURL() }
         dragChip.translatesAutoresizingMaskIntoConstraints = false
@@ -76,7 +97,7 @@ final class PlayerViewController: NSViewController {
         bypassToggle.target = self; bypassToggle.action = #selector(toggleBypass); bypassToggle.font = .systemFont(ofSize: 11)
         let bypassRow = NSStackView(views: [bypassToggle]); bypassRow.orientation = .horizontal
 
-        let stack = NSStackView(views: [header, waveform, transport, controls, bypassRow, actions])
+        let stack = NSStackView(views: [header, waveform, transport, controls, bypassRow, opRow, actions])
         stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 12
         stack.translatesAutoresizingMaskIntoConstraints = false
         root.addSubview(stack)
@@ -84,11 +105,10 @@ final class PlayerViewController: NSViewController {
         NSLayoutConstraint.activate([
             stack.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 20),
             stack.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -20),
-            stack.topAnchor.constraint(equalTo: root.topAnchor, constant: 18),
+            stack.topAnchor.constraint(equalTo: root.topAnchor, constant: 28),
             stack.bottomAnchor.constraint(equalTo: root.bottomAnchor, constant: -18),
             waveform.widthAnchor.constraint(equalTo: stack.widthAnchor),
             transport.widthAnchor.constraint(equalTo: stack.widthAnchor),
-            controls.widthAnchor.constraint(equalTo: stack.widthAnchor),
             actions.widthAnchor.constraint(equalTo: stack.widthAnchor),
             bypassRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
             waveform.heightAnchor.constraint(greaterThanOrEqualToConstant: 120),
@@ -103,9 +123,8 @@ final class PlayerViewController: NSViewController {
         let r = NSButton(title: "", image: sym("arrow.counterclockwise"), target: self, action: reset)
         r.isBordered = false; r.imagePosition = .imageOnly; r.contentTintColor = .tertiaryLabelColor
         r.widthAnchor.constraint(equalToConstant: 20).isActive = true
-        let s = NSStackView(views: [icon, slider, value, r]); s.orientation = .horizontal; s.spacing = 8
-        slider.setContentHuggingPriority(.defaultLow, for: .horizontal)
-        return s
+        let st = NSStackView(views: [icon, slider, value, r]); st.orientation = .horizontal; st.spacing = 8
+        return st
     }
     private func configure(_ b: NSButton, _ symbol: String, _ label: String, _ action: Selector) {
         b.bezelStyle = .regularSquare; b.isBordered = false; b.imagePosition = .imageOnly; b.image = sym(symbol)
@@ -173,6 +192,28 @@ final class PlayerViewController: NSViewController {
     @objc private func resetVol() { volSlider.doubleValue = 1; volChanged() }
     @objc private func resetStretch() { stretchSlider.doubleValue = 1; stretchChanged() }
     @objc private func resetPitch() { pitchSlider.doubleValue = 0; pitchChanged() }
+
+    private func intIn(_ s: String) -> Int? {
+        let f = s.filter { "0123456789+-".contains($0) }
+        return Int(f)
+    }
+    @objc private func volFieldEdited() {
+        if let n = intIn(volValue.stringValue) { volSlider.doubleValue = min(max(Double(n)/100, 0), 1); volChanged() } else { updateValues() }
+        view.window?.makeFirstResponder(waveform)
+    }
+    @objc private func stretchFieldEdited() {
+        if let n = intIn(stretchValue.stringValue) { stretchSlider.doubleValue = min(max(Double(n)/100, 0.5), 2.0); stretchChanged() } else { updateValues() }
+        view.window?.makeFirstResponder(waveform)
+    }
+    @objc private func pitchFieldEdited() {
+        if let n = intIn(pitchValue.stringValue) { pitchSlider.doubleValue = Double(min(max(n, -24), 24)); pitchChanged() } else { updateValues() }
+        view.window?.makeFirstResponder(waveform)
+    }
+    @objc private func opChanged() {
+        let a = opSlider.doubleValue
+        view.window?.alphaValue = CGFloat(a)
+        opValue.stringValue = "\(Int((a*100).rounded())) %"
+    }
 
     private func scheduleReprocess() {
         reprocessTimer?.invalidate()
