@@ -1,8 +1,9 @@
 import Cocoa
 
 /// Forme d'onde : pics + RMS, partie jouée en accent, tête de lecture,
-/// région de boucle A/B (poignées glissables), clic pour se positionner.
-final class WaveformView: NSView {
+/// région de boucle A/B (poignées glissables), clic pour se positionner,
+/// et glisser le corps de la forme d'onde pour exporter le WAV vers un DAW / le Finder.
+final class WaveformView: NSView, NSDraggingSource {
     var peaks: [Float] = [] { didSet { needsDisplay = true } }
     var rms: [Float] = [] { didSet { needsDisplay = true } }
     var progress: Double = 0 { didSet { if oldValue != progress { needsDisplay = true } } }
@@ -13,14 +14,17 @@ final class WaveformView: NSView {
 
     var onSeek: ((Double) -> Void)?
     var onLoopChange: ((Double, Double) -> Void)?
+    var provideURL: (() -> URL?)?                   // fournit le WAV traité à exporter au glisser
 
     private enum Drag { case none, seek, handleA, handleB, region }
     private var drag: Drag = .none
     private let handleHit: CGFloat = 10
     private let moveBandH: CGFloat = 16            // bande du haut (entre A et B) pour déplacer la boucle
+    private let exportThreshold: CGFloat = 6       // au-delà, un glisser sur le corps = export
     private var dragStartX: CGFloat = 0
     private var dragStartA: Double = 0
     private var dragStartB: Double = 0
+    private var pressOrigin: NSPoint = .zero
 
     override var isFlipped: Bool { true }
     override var mouseDownCanMoveWindow: Bool { false }
@@ -111,18 +115,62 @@ final class WaveformView: NSView {
             drag = .region; dragStartX = p.x; dragStartA = loopA; dragStartB = loopB
             NSCursor.closedHand.set()
         }
-        else { drag = .seek; seek(p) }
+        // corps : on ne positionne pas tout de suite. Clic simple = se positionner,
+        // glisser au-delà du seuil = exporter le WAV (drag-and-drop).
+        else { drag = .seek; pressOrigin = p }
     }
     override func mouseDragged(with e: NSEvent) {
         let p = convert(e.locationInWindow, from: nil)
         switch drag {
-        case .seek: seek(p)
+        case .seek:
+            if hypot(p.x - pressOrigin.x, p.y - pressOrigin.y) > exportThreshold {
+                drag = .none; beginExportDrag(with: e)
+            }
         case .handleA, .handleB: updateHandles(p)
         case .region: moveRegion(p)
         case .none: break
         }
     }
-    override func mouseUp(with e: NSEvent) { drag = .none; window?.invalidateCursorRects(for: self) }
+    override func mouseUp(with e: NSEvent) {
+        if drag == .seek { seek(convert(e.locationInWindow, from: nil)) }   // simple clic → se positionner
+        drag = .none; window?.invalidateCursorRects(for: self)
+    }
+
+    // MARK: Export par glisser
+
+    private func beginExportDrag(with e: NSEvent) {
+        guard let url = provideURL?() else { NSSound.beep(); return }
+        let item = NSDraggingItem(pasteboardWriter: url as NSURL)
+        let img = dragBadge(url.lastPathComponent)
+        let p = convert(e.locationInWindow, from: nil)
+        let frame = NSRect(x: p.x - 14, y: p.y - img.size.height / 2,
+                           width: img.size.width, height: img.size.height)
+        item.setDraggingFrame(frame, contents: img)
+        beginDraggingSession(with: [item], event: e, source: self)
+    }
+    func draggingSession(_ s: NSDraggingSession, sourceOperationMaskFor c: NSDraggingContext) -> NSDragOperation { .copy }
+
+    /// Petite pastille affichée sous le curseur pendant le glisser (icône + nom du fichier).
+    private func dragBadge(_ name: String) -> NSImage {
+        let font = NSFont.systemFont(ofSize: 11, weight: .medium)
+        let text = name as NSString
+        let tsize = text.size(withAttributes: [.font: font])
+        let pad: CGFloat = 8, iconW: CGFloat = 14, gap: CGFloat = 5, h: CGFloat = 24
+        let w = min(pad + iconW + gap + ceil(tsize.width) + pad, 280)
+        let img = NSImage(size: NSSize(width: w, height: h))
+        img.lockFocus()
+        NSColor.controlAccentColor.withAlphaComponent(0.92).setFill()
+        NSBezierPath(roundedRect: NSRect(x: 0, y: 0, width: w, height: h), xRadius: 6, yRadius: 6).fill()
+        let conf = NSImage.SymbolConfiguration(paletteColors: [.white])
+        if let sym = NSImage(systemSymbolName: "square.and.arrow.up.on.square", accessibilityDescription: nil)?
+            .withSymbolConfiguration(conf) {
+            sym.draw(in: NSRect(x: pad, y: (h - iconW) / 2, width: iconW, height: iconW))
+        }
+        text.draw(at: NSPoint(x: pad + iconW + gap, y: (h - tsize.height) / 2),
+                  withAttributes: [.font: font, .foregroundColor: NSColor.white])
+        img.unlockFocus()
+        return img
+    }
 
     /// Glisse toute la région A/B (longueur conservée), librement ou aimantée à la grille.
     private func moveRegion(_ p: NSPoint) {

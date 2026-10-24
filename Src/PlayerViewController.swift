@@ -32,7 +32,6 @@ final class PlayerViewController: NSViewController, NSWindowDelegate {
     private let opSlider = NSSlider()
     private let opValue = NSTextField(labelWithString: "100 %")
 
-    private let dragChip = SampleDragView()
     private let regionToggle = NSButton(checkboxWithTitle: Lang.t("A/B region", "Région A/B"), target: nil, action: nil)
     private let bypassToggle = NSButton(checkboxWithTitle: Lang.t("Bypass processing (pitch / tempo)", "Désactiver le traitement (pitch / tempo)"), target: nil, action: nil)
     private let renderButton = NSButton()
@@ -63,6 +62,7 @@ final class PlayerViewController: NSViewController, NSWindowDelegate {
 
         waveform.onSeek = { [weak self] f in self?.player.seek(toGlobal: f); self?.refresh() }
         waveform.onLoopChange = { [weak self] a, b in self?.player.setLoopRegion(a: a, b: b); self?.refresh() }
+        waveform.provideURL = { [weak self] in self?.exportURL() }   // glisser la forme d'onde = exporter
 
         let header = vstack([titleLabel, infoLabel], 2)
         let transport = hstack([playButton, loopButton, fullButton, NSView(), timeLabel], 10)
@@ -123,12 +123,14 @@ final class PlayerViewController: NSViewController, NSWindowDelegate {
         let opIcon = icon("circle.lefthalf.filled"); opIcon.toolTip = Lang.t("Window transparency", "Transparence de la fenêtre")
         let botRow = hstack([bypassToggle, regionToggle, NSView(), opIcon, opSlider, opValue], 10)
 
-        // Export
-        dragChip.provideURL = { [weak self] in self?.exportURL() }
-        dragChip.translatesAutoresizingMaskIntoConstraints = false
+        // Export : on glisse directement la forme d'onde ; "Rendre…" écrit le WAV et le révèle.
+        let dragHint = label(Lang.t("↥ Drag the waveform to a DAW / Finder  ·  click to seek",
+                                    "↥ Glissez la forme d'onde vers un DAW / Finder  ·  clic pour vous positionner"))
+        dragHint.lineBreakMode = .byTruncatingTail
+        dragHint.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         renderButton.title = Lang.t("Render…", "Rendre…"); renderButton.image = sym("square.and.arrow.down"); renderButton.imagePosition = .imageLeading
         renderButton.bezelStyle = .rounded; renderButton.controlSize = .small; renderButton.target = self; renderButton.action = #selector(renderReveal)
-        let actions = hstack([dragChip, NSView(), renderButton], 10)
+        let actions = hstack([dragHint, NSView(), renderButton], 10)
 
         let stack = NSStackView(views: [header, waveform, transport, columns, sep, botRow, actions])
         stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 12

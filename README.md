@@ -28,9 +28,9 @@ Free and open-source 🙂 — if you feel like it, buy me a few tokens:
 - **Bypass processing** to compare with the original.
 - **Follow the Finder selection**: selecting an audio file opens and plays it automatically;
   a non-audio selection stops playback. Playback also stops when the window is closed.
-- **Export**: drag-and-drop the processed WAV (24-bit) into any DAW (or the Finder) — drop it
-  exactly where you want it in the arrangement — plus a **“Render…”** button that writes the
-  WAV and reveals it in the Finder.
+- **Export**: **drag the waveform** straight into any DAW (or the Finder) — drop it exactly
+  where you want it in the arrangement — plus a **“Render…”** button that writes the processed
+  WAV (24-bit) and reveals it in the Finder.
 - Settings **kept from one file to the next** (volume / pitch / bypass). The tempo resets to
   each sample's own detected BPM.
 
@@ -47,8 +47,9 @@ opens on its own.
 
 ## Export to a DAW
 
-- **Drag to a DAW / Finder**: drag the chip into your DAW's arrangement and drop it where you
-  want (the playhead position, for instance) — this is the recommended method and works with any DAW.
+- **Drag the waveform**: just drag the waveform itself into your DAW's arrangement and drop it
+  where you want (the playhead position, for instance) — works with any DAW. A single **click**
+  on the waveform still moves the playhead; the A/B handles and the top bar keep their own drags.
 - **Render…**: writes the processed WAV and reveals it in the Finder.
 - **A/B region** checkbox: limits the export / drag to the looped region only.
 
@@ -78,7 +79,7 @@ Src/
   BPMDetector.swift         tempo detection (RMS envelope + autocorrelation)
   WaveformView.swift        waveform + A/B handles + magnetic grid
   WaveformAnalyzer.swift    peak/RMS computation
-  LogicImporter.swift       temp WAV export + drag-and-drop source
+  LogicImporter.swift       temp WAV export for drag-and-drop / render
   Localize.swift            tiny EN/FR localization helper
   StretchBridge.{h,cpp}     C bridge to Signalsmith Stretch
   Bridging.h                Swift/C bridging header
