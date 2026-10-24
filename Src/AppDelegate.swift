@@ -101,11 +101,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             windowController = wc; vc = c; controller = wc
         }
         lastLoadedPath = url.path
-        // On active le player (fenêtre clé) : la barre d'espace et les autres
-        // touches lui sont alors adressées dès qu'un fichier est chargé.
-        NSApp.activate(ignoringOtherApps: true)
-        controller.showWindow(nil)
-        controller.window?.makeKeyAndOrderFront(nil)
+        if follow {
+            // le Finder garde le focus clavier (navigation aux flèches) ; le player
+            // suit en arrière-plan. La barre d'espace agit après un clic dans le player.
+            controller.window?.orderFront(nil)
+        } else {
+            NSApp.activate(ignoringOtherApps: true)
+            controller.showWindow(nil)
+            controller.window?.makeKeyAndOrderFront(nil)
+        }
         vc?.open(url: url)
     }
 
