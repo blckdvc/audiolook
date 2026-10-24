@@ -37,8 +37,8 @@ cat > "$APP/Contents/Info.plist" <<'PL'
   <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
   <key>CFBundleName</key><string>audiolook</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleShortVersionString</key><string>1.0.9</string>
-  <key>CFBundleVersion</key><string>10</string>
+  <key>CFBundleShortVersionString</key><string>1.1.0</string>
+  <key>CFBundleVersion</key><string>11</string>
   <key>LSMinimumSystemVersion</key><string>13.0</string>
   <key>LSApplicationCategoryType</key><string>public.app-category.music</string>
   <key>LSUIElement</key><true/>
@@ -76,6 +76,9 @@ echo "→ Icône (iconutil)"
 if [ -d Resources/AppIcon.iconset ]; then
   iconutil -c icns Resources/AppIcon.iconset -o "$APP/Contents/Resources/AppIcon.icns" && echo "icône OK" || echo "⚠︎ iconutil a échoué (app sans icône)"
 fi
+
+# Badge de soutien (« buy me tokens ») affiché dans la fenêtre À propos
+[ -f docs/buy-me-tokens.png ] && cp docs/buy-me-tokens.png "$APP/Contents/Resources/buy-me-tokens.png"
 
 echo "→ Signature ad hoc…"
 xattr -cr "$APP" || true

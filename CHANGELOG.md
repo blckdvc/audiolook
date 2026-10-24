@@ -2,20 +2,25 @@
 
 All notable changes to **audiolook**.
 
-## 1.0.9 — 2026-10-24
+## 1.1.0 — 2026-10-24
 - **Waveform zoom** — mouse wheel or trackpad pinch; **pan** with a two-finger
   horizontal scroll or **Shift + wheel** (zoom and pan around the cursor).
+- **Higher-resolution waveform** — detail scales with the file length, so zooming in
+  stays sharp instead of blocky.
 - **Export by dragging the waveform** straight into any DAW (or the Finder). The
   exported WAV (24-bit) carries the applied **pitch and tempo** (unless Bypass is
   on). The separate drag chip and the **Render** button were removed.
 - **Automatic A/B-region export** — when the loop isn't the whole file, only the
   segment between the A and B markers is exported (no checkbox); the bounds follow
   the markers shown on the waveform.
+- **More precise BPM detection** — sub-lag (parabolic) interpolation removes the
+  ~1 BPM rounding bias.
 - **Two-column layout** (Volume / Pitch · Tempo / Grid) with a cleaner footer.
 - **Window size and position remembered** between launches.
 - **Tempo resets to each sample's own detected BPM** (no longer carried over).
 - **Space bar** toggles play / pause.
 - **Attack preserved** at the loop start (the first kick stays punchy).
+- **About** window now shows a clickable **"buy me tokens"** badge (→ PayPal).
 - Interface **follows the system language** (English / French).
 - Wider A/B handle grab zone.
 

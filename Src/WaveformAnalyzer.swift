@@ -14,9 +14,12 @@ final class WaveformAnalyzer {
         queue.async { [weak self] in self?.run(url: url, bins: bins, update: update) }
     }
 
-    private func run(url: URL, bins: Int, update: @escaping (Result) -> Void) {
+    private func run(url: URL, bins binsHint: Int, update: @escaping (Result) -> Void) {
         guard let file = try? AVAudioFile(forReading: url), file.length > 0 else { return }
         let length = file.length
+        // Résolution adaptée à la durée : ~1 point tous les 64 échantillons, pour un
+        // zoom net, bornée pour la mémoire (≈ 2,3 Mo de pics/RMS au maximum).
+        let bins = min(max(Int(length / 64), binsHint), 300_000)
         let format = file.processingFormat
         let channels = Int(format.channelCount)
         let chunk: AVAudioFrameCount = 65_536

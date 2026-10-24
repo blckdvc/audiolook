@@ -49,9 +49,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let a = NSAlert()
         a.messageText = "audiolook \(v)"
         a.informativeText = Lang.t(
-            "Loop player: waveform, A/B loop, tempo (BPM), transposition and magnetic grid (Signalsmith engine).\n\nSelect an audio file in the Finder to load it automatically.\n\nby blckdvc",
-            "Lecteur de boucles : forme d'onde, boucle A/B, tempo (BPM), transposition et grille magnétique (moteur Signalsmith).\n\nSélectionne un fichier audio dans le Finder pour le charger automatiquement.\n\npar blckdvc")
+            "Loop player: waveform, A/B loop, tempo (BPM), transposition and magnetic grid (Signalsmith engine).\n\nSelect an audio file in the Finder to load it automatically.\n\nby blckdvc\n\nFree & open-source — if you feel like it, buy me a few tokens:",
+            "Lecteur de boucles : forme d'onde, boucle A/B, tempo (BPM), transposition et grille magnétique (moteur Signalsmith).\n\nSélectionne un fichier audio dans le Finder pour le charger automatiquement.\n\npar blckdvc\n\nLibre et open-source — si le cœur t'en dit, offre-moi quelques tokens :")
+        // Badge « buy me tokens » cliquable → PayPal
+        if let img = NSImage(named: "buy-me-tokens") {
+            let maxW: CGFloat = 300
+            let s = min(1, maxW / max(img.size.width, 1))
+            let btn = NSButton(frame: NSRect(x: 0, y: 0, width: img.size.width * s, height: img.size.height * s))
+            btn.image = img
+            btn.imageScaling = .scaleProportionallyUpOrDown
+            btn.imagePosition = .imageOnly
+            btn.isBordered = false
+            btn.target = self; btn.action = #selector(openDonate)
+            btn.toolTip = "paypal.me/lbenh"
+            a.accessoryView = btn
+        }
         a.runModal()
+    }
+    @objc private func openDonate() {
+        if let url = URL(string: "https://paypal.me/lbenh") { NSWorkspace.shared.open(url) }
     }
 
     // MARK: Ouverture

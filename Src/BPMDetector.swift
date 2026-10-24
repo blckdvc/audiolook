@@ -38,15 +38,28 @@ enum BPMDetector {
         let minLag = max(1, Int((60.0 / maxBPM) * envRate))
         let maxLag = min(flux.count - 1, Int((60.0 / minBPM) * envRate))
         guard maxLag > minLag else { return 120 }
+        var corr = [Float](repeating: 0, count: maxLag + 1)
         var bestLag = minLag; var best: Float = -1
         for lag in minLag...maxLag {
             var sum: Float = 0; var k = 0
             while k + lag < flux.count { sum += flux[k] * flux[k + lag]; k += 1 }
+            corr[lag] = sum
             // légère préférence pour les lags courts (évite les sous-harmoniques)
             let w = sum / Float(lag).squareRoot()
             if w > best { best = w; bestLag = lag }
         }
-        var bpm = 60.0 * envRate / Double(bestLag)
+        // Raffinement sub-lag (interpolation parabolique) : le lag entier quantifie
+        // le tempo (≈ ±1 BPM), l'interpolation redonne un lag fractionnaire précis.
+        var lag = Double(bestLag)
+        if bestLag > minLag, bestLag < maxLag {
+            let y0 = corr[bestLag - 1], y1 = corr[bestLag], y2 = corr[bestLag + 1]
+            let denom = y0 - 2 * y1 + y2
+            if denom != 0 {
+                let delta = 0.5 * Double(y0 - y2) / Double(denom)
+                if delta > -1, delta < 1 { lag += delta }
+            }
+        }
+        var bpm = 60.0 * envRate / lag
         while bpm < 80 { bpm *= 2 }
         while bpm > 160 { bpm /= 2 }
         return (bpm).rounded()
