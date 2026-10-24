@@ -38,7 +38,7 @@ Free and open-source 🙂 — if you feel like it, buy me a few tokens:
 
 ## Install (DMG)
 
-Download [`dist/audiolook.dmg`](dist/audiolook.dmg), open it and drag **audiolook** into **Applications**.
+Download [`audiolook.dmg`](audiolook.dmg), open it and drag **audiolook** into **Applications**.
 
 The app is **ad-hoc signed** (no paid Apple Developer account), so on **first launch**:
 right-click **audiolook › Open › Open** (macOS 13/14), or System Settings › Privacy & Security ›
@@ -71,7 +71,7 @@ The script compiles the C++ bridge (Signalsmith) with `clang++`, then the app wi
 ad-hoc signs it and installs it to `~/Applications/audiolook.app`.
 `DEVELOPER_DIR` is forced to the Command Line Tools (avoids the Xcode license).
 
-To build the DMG: `./makedmg.command` (produces `dist/audiolook.dmg`).
+To build the DMG: `./makedmg.command` (produces `audiolook.dmg`).
 
 ## Architecture
 
