@@ -43,7 +43,7 @@ final class PlayerViewController: NSViewController, NSWindowDelegate {
     private var index = 0
     private var keyMonitor: Any?
 
-    private let gridDivs: [Double] = [0.25, 0.5, 1.0, 4.0]   // 1/16, 1/8, 1/4, mesure
+    private let gridDivs: [Double] = [0.03125, 0.0625, 0.125, 0.25, 0.5, 1.0, 4.0]   // 1/128 … 1/4, mesure
 
     private func sym(_ n: String) -> NSImage { NSImage(systemSymbolName: n, accessibilityDescription: nil) ?? NSImage(size: NSSize(width: 1, height: 1)) }
 
@@ -71,8 +71,8 @@ final class PlayerViewController: NSViewController, NSWindowDelegate {
         pitchSlider.minValue = -24; pitchSlider.maxValue = 24; pitchSlider.doubleValue = 0; pitchSlider.target = self; pitchSlider.action = #selector(pitchChanged)
         pitchSlider.numberOfTickMarks = 49; pitchSlider.allowsTickMarkValuesOnly = true
         tgtSlider.minValue = 40; tgtSlider.maxValue = 220; tgtSlider.doubleValue = 120; tgtSlider.target = self; tgtSlider.action = #selector(tgtSliderChanged)
-        for sl in [volSlider, pitchSlider] { sl.controlSize = .small; sl.setContentHuggingPriority(.required, for: .horizontal); sl.widthAnchor.constraint(equalToConstant: 104).isActive = true }
-        tgtSlider.controlSize = .small; tgtSlider.setContentHuggingPriority(.required, for: .horizontal); tgtSlider.widthAnchor.constraint(equalToConstant: 92).isActive = true
+        for sl in [volSlider, pitchSlider] { sl.controlSize = .small; sl.setContentHuggingPriority(.required, for: .horizontal); sl.widthAnchor.constraint(equalToConstant: 100).isActive = true }
+        tgtSlider.controlSize = .small; tgtSlider.setContentHuggingPriority(.required, for: .horizontal); tgtSlider.widthAnchor.constraint(equalToConstant: 86).isActive = true
 
         volValue.target = self; volValue.action = #selector(volFieldEdited)
         pitchValue.target = self; pitchValue.action = #selector(pitchFieldEdited)
@@ -94,18 +94,28 @@ final class PlayerViewController: NSViewController, NSWindowDelegate {
 
         // Grille
         gridToggle.target = self; gridToggle.action = #selector(gridChanged); gridToggle.font = .systemFont(ofSize: 11)
-        gridPopup.addItems(withTitles: ["1/16", "1/8", "1/4", Lang.t("Bar", "Mesure")]); gridPopup.selectItem(at: 2)
+        gridPopup.addItems(withTitles: ["1/128", "1/64", "1/32", "1/16", "1/8", "1/4", Lang.t("Bar", "Mesure")]); gridPopup.selectItem(at: 5)
         gridPopup.controlSize = .small; gridPopup.font = .systemFont(ofSize: 11); gridPopup.target = self; gridPopup.action = #selector(gridChanged)
 
-        // Deux colonnes : [Volume / Pitch]  |  [Tempo / Grille]
+        // Deux colonnes alignées (grilles) : [Volume / Pitch] | [Tempo / Grille].
+        // Chaque grille aligne ses colonnes (icône · libellé · contrôle · valeur · ↺).
         let arrow = label("→")
-        let volCell   = cell([icon("speaker.wave.2.fill"), label(Lang.t("Volume", "Volume")), volSlider, volValue, resetBtn(#selector(resetVol))])
-        let pitchCell = cell([icon("tuningfork"), label(Lang.t("Pitch", "Pitch")), pitchSlider, pitchValue, resetBtn(#selector(resetPitch))])
-        let tempoCell = cell([icon("metronome.fill"), srcBPMField, arrow, tgtSlider, tgtField, resetBtn(#selector(resetTempo))])
-        let snapCell  = cell([icon("grid"), gridToggle, gridPopup, beatsField, label(Lang.t("beats", "temps"))])
-        let leftCol  = vstack([volCell, pitchCell], 8)
-        let rightCol = vstack([tempoCell, snapCell], 8)
-        let columns = hstack([leftCol, NSView(), rightCol], 12)
+        let leftGrid = NSGridView(views: [
+            [icon("speaker.wave.2.fill"), label(Lang.t("Volume", "Volume")), volSlider,   volValue,   resetBtn(#selector(resetVol))],
+            [icon("tuningfork"),          label(Lang.t("Pitch",  "Pitch")),  pitchSlider, pitchValue, resetBtn(#selector(resetPitch))],
+        ])
+        let rightGrid = NSGridView(views: [
+            [icon("metronome.fill"), srcBPMField, hstack([arrow, tgtSlider], 6), tgtField,   resetBtn(#selector(resetTempo))],
+            [icon("grid"),           gridToggle,  gridPopup,                     beatsField, label(Lang.t("beats", "temps"))],
+        ])
+        for g in [leftGrid, rightGrid] {
+            g.rowSpacing = 8; g.columnSpacing = 6; g.rowAlignment = .none
+            g.column(at: 1).xPlacement = .leading
+            g.column(at: 3).xPlacement = .trailing
+            for r in 0..<g.numberOfRows { g.row(at: r).yPlacement = .center; g.row(at: r).height = 22 }
+        }
+        let columns = hstack([leftGrid, NSView(), rightGrid], 12)
+        columns.alignment = .top
 
         let sep = NSBox(); sep.boxType = .separator; sep.translatesAutoresizingMaskIntoConstraints = false
 
@@ -170,7 +180,6 @@ final class PlayerViewController: NSViewController, NSWindowDelegate {
     private func vstack(_ v: [NSView], _ sp: CGFloat = 8) -> NSStackView {
         let s = NSStackView(views: v); s.orientation = .vertical; s.spacing = sp; s.alignment = .leading; return s
     }
-    private func cell(_ v: [NSView]) -> NSStackView { hstack(v, 6) }
     private func configure(_ b: NSButton, _ symbol: String, _ action: Selector) {
         b.bezelStyle = .regularSquare; b.isBordered = false; b.imagePosition = .imageOnly; b.image = sym(symbol)
         b.symbolConfiguration = NSImage.SymbolConfiguration(pointSize: 16, weight: .semibold); b.contentTintColor = .controlAccentColor

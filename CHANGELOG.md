@@ -2,6 +2,12 @@
 
 All notable changes to **audiolook**.
 
+## 1.1.3 — 2026-10-24
+- **Aligned controls** — Volume / Pitch (and Tempo / Grid) now sit on shared,
+  aligned columns (icon · label · slider · value · reset) instead of drifting with
+  each label's width. Stays compact (two columns).
+- **Finer magnetic grid** — added **1/32, 1/64, 1/128** divisions.
+
 ## 1.1.2 — 2026-10-24
 - **Much sharper waveform** — redrawn as a smooth, anti-aliased **min/max envelope**
   at up to ~1 point per sample (capped), so it stays crisp when zoomed.
