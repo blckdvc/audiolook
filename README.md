@@ -5,6 +5,7 @@ time-stretch and transposition (Signalsmith Stretch engine, offline rendering).
 Made to audition and prepare samples before dragging them into a DAW.
 
 The interface follows the system language (English, or French on a French macOS).
+See the [changelog](CHANGELOG.md) for what's new.
 
 ![audiolook — main window](docs/screenshot-main.jpg)
 ![audiolook — A/B loop region](docs/screenshot-loop-ab.jpg)
