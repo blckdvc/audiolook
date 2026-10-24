@@ -304,11 +304,13 @@ final class LoopPlayer {
 
     // MARK: Export
 
-    func renderRegionForExport(regionOnly: Bool) -> AVAudioPCMBuffer? {
+    /// Rend la portion [a, b] (fractions 0…1) du fichier source, traitements appliqués.
+    func renderRegionForExport(a: Double, b: Double) -> AVAudioPCMBuffer? {
         guard let src = source else { return nil }
         let n = src.frameCount
-        let a = regionOnly ? Int((loopA * Double(n)).rounded()) : 0
-        let b = regionOnly ? Int((loopB * Double(n)).rounded()) : n
-        return SampleProcessor.render(src, from: a, to: b, rate: effRate, semitones: effSemi)
+        let lo = max(0, min(a, b)), hi = min(1, max(a, b))
+        let af = Int((lo * Double(n)).rounded())
+        let bf = max(af + 1, Int((hi * Double(n)).rounded()))
+        return SampleProcessor.render(src, from: af, to: bf, rate: effRate, semitones: effSemi)
     }
 }

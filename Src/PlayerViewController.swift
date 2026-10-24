@@ -32,9 +32,7 @@ final class PlayerViewController: NSViewController, NSWindowDelegate {
     private let opSlider = NSSlider()
     private let opValue = NSTextField(labelWithString: "100 %")
 
-    private let regionToggle = NSButton(checkboxWithTitle: Lang.t("A/B region", "Région A/B"), target: nil, action: nil)
     private let bypassToggle = NSButton(checkboxWithTitle: Lang.t("Bypass processing (pitch / tempo)", "Désactiver le traitement (pitch / tempo)"), target: nil, action: nil)
-    private let renderButton = NSButton()
 
     private let player = LoopPlayer()
     private let analyzer = WaveformAnalyzer()
@@ -110,9 +108,8 @@ final class PlayerViewController: NSViewController, NSWindowDelegate {
 
         let sep = NSBox(); sep.boxType = .separator; sep.translatesAutoresizingMaskIntoConstraints = false
 
-        // Bas : bypass + région A/B, et transparence à droite (hors du flux audio)
+        // Bas : bypass, et transparence à droite (hors du flux audio)
         bypassToggle.target = self; bypassToggle.action = #selector(toggleBypass); bypassToggle.font = .systemFont(ofSize: 11)
-        regionToggle.font = .systemFont(ofSize: 11)
         opSlider.minValue = 0.35; opSlider.maxValue = 1; opSlider.doubleValue = 1
         opSlider.controlSize = .small; opSlider.target = self; opSlider.action = #selector(opChanged)
         opSlider.setContentHuggingPriority(.required, for: .horizontal)
@@ -121,16 +118,15 @@ final class PlayerViewController: NSViewController, NSWindowDelegate {
         opValue.setContentHuggingPriority(.required, for: .horizontal)
         opValue.widthAnchor.constraint(equalToConstant: 46).isActive = true
         let opIcon = icon("circle.lefthalf.filled"); opIcon.toolTip = Lang.t("Window transparency", "Transparence de la fenêtre")
-        let botRow = hstack([bypassToggle, regionToggle, NSView(), opIcon, opSlider, opValue], 10)
+        let botRow = hstack([bypassToggle, NSView(), opIcon, opSlider, opValue], 10)
 
-        // Export : on glisse directement la forme d'onde ; "Rendre…" écrit le WAV et le révèle.
-        let dragHint = label(Lang.t("↥ Drag the waveform to a DAW / Finder  ·  click to seek",
-                                    "↥ Glissez la forme d'onde vers un DAW / Finder  ·  clic pour vous positionner"))
+        // Export : on glisse directement la forme d'onde (traitements pitch/tempo inclus,
+        // et seulement la région A/B si la boucle n'est pas entière).
+        let dragHint = label(Lang.t("↥ Drag to a DAW / Finder  ·  click to seek  ·  scroll to zoom (⇧ to pan)",
+                                    "↥ Glissez vers un DAW / Finder  ·  clic pour vous positionner  ·  molette : zoom (⇧ : défiler)"))
         dragHint.lineBreakMode = .byTruncatingTail
         dragHint.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-        renderButton.title = Lang.t("Render…", "Rendre…"); renderButton.image = sym("square.and.arrow.down"); renderButton.imagePosition = .imageLeading
-        renderButton.bezelStyle = .rounded; renderButton.controlSize = .small; renderButton.target = self; renderButton.action = #selector(renderReveal)
-        let actions = hstack([dragHint, NSView(), renderButton], 10)
+        let actions = hstack([dragHint, NSView()], 10)
 
         let stack = NSStackView(views: [header, waveform, transport, columns, sep, botRow, actions])
         stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 12
@@ -326,19 +322,19 @@ final class PlayerViewController: NSViewController, NSWindowDelegate {
 
     // MARK: Export / Logic
     private func exportURL() -> URL? {
-        guard let buf = player.renderRegionForExport(regionOnly: regionToggle.state == .on),
+        // On se base sur les marqueurs A/B visibles (source de vérité de l'UI) :
+        // si la boucle n'est pas entière, on n'exporte que le morceau entre A et B.
+        let a = waveform.loopA, b = waveform.loopB
+        let full = a <= 0.0005 && b >= 0.9995
+        guard let buf = player.renderRegionForExport(a: a, b: b),
               let base = currentURL?.deletingPathExtension().lastPathComponent else { return nil }
         var name = base
         if bypassToggle.state == .off {
             if Int(targetBPM) != Int(sourceBPM) { name += "_\(Int(targetBPM))bpm" }
             let st = Int(pitchSlider.doubleValue.rounded()); if st != 0 { name += String(format: "_%+dst", st) }
         }
-        if regionToggle.state == .on { name += "_loop" }
+        if !full { name += "_loop" }
         return LogicImporter.exportTemp(buf, name: name)
-    }
-    @objc private func renderReveal() {
-        guard let url = exportURL() else { NSSound.beep(); return }
-        NSWorkspace.shared.activateFileViewerSelecting([url]); flash(Lang.t("Rendered: ", "Rendu : ") + url.lastPathComponent)
     }
 
     // MARK: UI refresh
@@ -354,15 +350,6 @@ final class PlayerViewController: NSViewController, NSWindowDelegate {
         playButton.image = sym(player.isPlaying ? "pause.fill" : "play.fill")
         loopButton.contentTintColor = player.loopEnabled ? .controlAccentColor : .tertiaryLabelColor
         updateValues()
-    }
-    private var flashToken = 0
-    private func flash(_ msg: String) {
-        flashToken += 1; let t = flashToken
-        let saved = currentURL.map { describe($0, player.source) } ?? ""
-        infoLabel.stringValue = msg
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { [weak self] in
-            guard let self, t == self.flashToken else { return }; self.infoLabel.stringValue = saved
-        }
     }
     private func updateValues() {
         volValue.stringValue = "\(Int((volSlider.doubleValue*100).rounded())) %"

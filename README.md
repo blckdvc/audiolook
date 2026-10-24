@@ -16,7 +16,8 @@ Free and open-source 🙂 — if you feel like it, buy me a few tokens:
 
 ## Features
 
-- **Waveform** with playhead; click to seek.
+- **Waveform** with playhead; click to seek. **Zoom** with the mouse wheel or a trackpad pinch;
+  **pan** with a two-finger horizontal scroll (trackpad) or **Shift + wheel** (mouse).
 - **A/B loop** with crossfade (click-free): two handles, or the **bar at the top between
   A and B** to slide the whole region (freely, or snapped to the grid).
 - **Tempo (BPM)**: automatic detection + match to a target BPM (pitch unchanged).
@@ -29,8 +30,8 @@ Free and open-source 🙂 — if you feel like it, buy me a few tokens:
 - **Follow the Finder selection**: selecting an audio file opens and plays it automatically;
   a non-audio selection stops playback. Playback also stops when the window is closed.
 - **Export**: **drag the waveform** straight into any DAW (or the Finder) — drop it exactly
-  where you want it in the arrangement — plus a **“Render…”** button that writes the processed
-  WAV (24-bit) and reveals it in the Finder.
+  where you want it in the arrangement. The exported WAV (24-bit) includes the applied pitch and
+  tempo, and, if the A/B loop isn't the whole file, contains only the segment between the markers.
 - Settings **kept from one file to the next** (volume / pitch / bypass). The tempo resets to
   each sample's own detected BPM.
 
@@ -50,8 +51,12 @@ opens on its own.
 - **Drag the waveform**: just drag the waveform itself into your DAW's arrangement and drop it
   where you want (the playhead position, for instance) — works with any DAW. A single **click**
   on the waveform still moves the playhead; the A/B handles and the top bar keep their own drags.
-- **Render…**: writes the processed WAV and reveals it in the Finder.
-- **A/B region** checkbox: limits the export / drag to the looped region only.
+- **Processing included**: the exported WAV reflects the current pitch and tempo (unless
+  **Bypass** is on, which exports the original).
+- **A/B region**: when the A/B loop is *not* the whole file, only the segment between the A and B
+  markers is exported. Click **Whole loop** to reset A/B and export the whole file.
+- To **save** the file instead of dropping it in a DAW, just drag it into a Finder window or onto
+  the Desktop.
 
 ## Build (without Xcode)
 
