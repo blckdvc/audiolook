@@ -4,7 +4,8 @@ import Cocoa
 /// région de boucle A/B (poignées glissables), clic pour se positionner,
 /// glisser le corps pour exporter le WAV, et zoom (molette / pinch trackpad).
 final class WaveformView: NSView, NSDraggingSource {
-    var peaks: [Float] = [] { didSet { zoom = 1; viewStart = 0; needsDisplay = true } }
+    var maxv: [Float] = [] { didSet { zoom = 1; viewStart = 0; needsDisplay = true } }   // enveloppe max (signée)
+    var minv: [Float] = [] { didSet { needsDisplay = true } }                            // enveloppe min (signée)
     var rms: [Float] = [] { didSet { needsDisplay = true } }
     var progress: Double = 0 { didSet { if oldValue != progress { needsDisplay = true } } }
     var loopA: Double = 0 { didSet { needsDisplay = true; window?.invalidateCursorRects(for: self) } }
@@ -15,6 +16,12 @@ final class WaveformView: NSView, NSDraggingSource {
     var onSeek: ((Double) -> Void)?
     var onLoopChange: ((Double, Double) -> Void)?
     var provideURL: (() -> URL?)?                   // fournit le WAV traité à exporter au glisser
+    var onSpace: (() -> Void)?                      // barre d'espace → lecture / pause
+
+    override var acceptsFirstResponder: Bool { true }
+    override func keyDown(with e: NSEvent) {
+        if e.keyCode == 49 { onSpace?() } else { super.keyDown(with: e) }   // 49 = espace
+    }
 
     // Zoom : fenêtre visible = [viewStart, viewStart + span] en fractions du fichier.
     private var zoom: Double = 1                    // 1 = tout le fichier ; >1 = zoomé
@@ -102,30 +109,64 @@ final class WaveformView: NSView, NSDraggingSource {
             }
         }
 
-        if !peaks.isEmpty {
-            let scale = window?.backingScaleFactor ?? 2
-            let step = 1 / scale
-            let columns = max(1, Int(b.width / step))
+        if !maxv.isEmpty {
+            let count = maxv.count
+            let cols = max(1, Int(b.width.rounded(.up)))
             let playedX = fx(progress)
             let accent = NSColor.controlAccentColor
             let idle = NSColor(white: 0.62, alpha: 1)
-            let count = Double(peaks.count)
-            for col in 0..<columns {
-                let x = CGFloat(col) * step
-                let f0 = xf(x), f1 = xf(x + step)
+
+            // Enveloppes par colonne (1 pt), bornées à la fenêtre visible.
+            var topMM = [CGFloat](repeating: midY, count: cols)   // min/max (contour)
+            var botMM = [CGFloat](repeating: midY, count: cols)
+            var topRM = [CGFloat](repeating: midY, count: cols)   // RMS (corps)
+            var botRM = [CGFloat](repeating: midY, count: cols)
+            var has = [Bool](repeating: false, count: cols)
+            for c in 0..<cols {
+                let x = CGFloat(c)
+                let f0 = xf(x), f1 = xf(x + 1)
                 if f1 < 0 || f0 > 1 { continue }
-                let lo = max(0, Int(f0 * count))
-                if lo >= peaks.count { continue }
-                let hi = min(peaks.count, max(lo + 1, Int(f1 * count)))
-                var p: Float = 0, r: Float = 0
-                for i in lo..<hi { p = max(p, peaks[i]); if i < rms.count { r = max(r, rms[i]) } }
-                let inLoop = x >= cxA && x <= cxB
-                let base = (x < playedX) ? accent : idle
-                let ph = max(CGFloat(min(p, 1)) * half, 0.5)
-                base.withAlphaComponent(inLoop ? 0.45 : 0.3).setFill()
-                ctx.fill(CGRect(x: x, y: midY - ph, width: step, height: ph * 2))
-                let rh = CGFloat(min(r, 1)) * half
-                if rh > 0 { base.withAlphaComponent(inLoop ? 1 : 0.55).setFill(); ctx.fill(CGRect(x: x, y: midY - rh, width: step, height: rh * 2)) }
+                let lo = max(0, Int(f0 * Double(count)))
+                if lo >= count { continue }
+                let hi = min(count, max(lo + 1, Int(f1 * Double(count))))
+                var mx: Float = 0, mn: Float = 0, rm: Float = 0
+                for i in lo..<hi {
+                    if maxv[i] > mx { mx = maxv[i] }
+                    if minv[i] < mn { mn = minv[i] }
+                    if i < rms.count, rms[i] > rm { rm = rms[i] }
+                }
+                has[c] = true
+                topMM[c] = midY - CGFloat(min(mx, 1)) * half
+                botMM[c] = midY - CGFloat(max(mn, -1)) * half
+                topRM[c] = midY - CGFloat(min(rm, 1)) * half
+                botRM[c] = midY + CGFloat(min(rm, 1)) * half
+            }
+
+            func fill(_ a: Int, _ e: Int, _ top: [CGFloat], _ bot: [CGFloat], _ color: NSColor) {
+                guard e > a else { return }
+                let p = NSBezierPath()
+                p.move(to: NSPoint(x: CGFloat(a), y: top[a]))
+                for c in a..<e { p.line(to: NSPoint(x: CGFloat(c), y: top[c])) }
+                for c in stride(from: e - 1, through: a, by: -1) { p.line(to: NSPoint(x: CGFloat(c), y: bot[c])) }
+                p.close(); color.setFill(); p.fill()
+            }
+            func key(_ c: Int) -> Int {
+                let x = CGFloat(c)
+                return ((x < playedX) ? 2 : 0) | ((x >= cxA && x <= cxB) ? 1 : 0)
+            }
+            // Tracé rempli lissé, par segments contigus de même couleur (lu/non-lu × dans/hors boucle).
+            var seg = 0
+            while seg < cols {
+                if !has[seg] { seg += 1; continue }
+                let k = key(seg)
+                var end = seg + 1
+                while end < cols, has[end], key(end) == k { end += 1 }
+                let drawEnd = (end < cols && has[end]) ? end + 1 : end   // léger chevauchement (pas de trou)
+                let played = (k & 2) != 0, inLoop = (k & 1) != 0
+                let base = played ? accent : idle
+                fill(seg, drawEnd, topMM, botMM, base.withAlphaComponent(inLoop ? 0.55 : 0.32))
+                fill(seg, drawEnd, topRM, botRM, base.withAlphaComponent(inLoop ? 1.0 : 0.6))
+                seg = end
             }
         }
 
@@ -165,6 +206,7 @@ final class WaveformView: NSView, NSDraggingSource {
     }
 
     override func mouseDown(with e: NSEvent) {
+        window?.makeFirstResponder(self)            // récupère le focus clavier (barre d'espace)
         let p = convert(e.locationInWindow, from: nil)
         let xA = fx(loopA), xB = fx(loopB)
         if abs(p.x - xA) <= handleHit { drag = .handleA; updateHandles(p) }

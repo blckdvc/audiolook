@@ -61,6 +61,7 @@ final class PlayerViewController: NSViewController, NSWindowDelegate {
         waveform.onSeek = { [weak self] f in self?.player.seek(toGlobal: f); self?.refresh() }
         waveform.onLoopChange = { [weak self] a, b in self?.player.setLoopRegion(a: a, b: b); self?.refresh() }
         waveform.provideURL = { [weak self] in self?.exportURL() }   // glisser la forme d'onde = exporter
+        waveform.onSpace = { [weak self] in self?.togglePlay() }      // barre d'espace → lecture / pause
 
         let header = vstack([titleLabel, infoLabel], 2)
         let transport = hstack([playButton, loopButton, fullButton, NSView(), timeLabel], 10)
@@ -190,7 +191,7 @@ final class PlayerViewController: NSViewController, NSWindowDelegate {
 
     private func load(_ url: URL) {
         analyzer.cancel(); player.stop()
-        waveform.peaks = []; waveform.rms = []; waveform.progress = 0; waveform.loopA = 0; waveform.loopB = 1
+        waveform.maxv = []; waveform.minv = []; waveform.rms = []; waveform.progress = 0; waveform.loopA = 0; waveform.loopB = 1
         currentURL = url
         titleLabel.stringValue = Lang.t("Loading…", "Chargement…"); infoLabel.stringValue = ""
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
@@ -214,7 +215,7 @@ final class PlayerViewController: NSViewController, NSWindowDelegate {
                 self.player.onStateChange = { [weak self] in self?.refresh() }
                 self.titleLabel.stringValue = url.lastPathComponent
                 self.infoLabel.stringValue = self.describe(url, src)
-                self.analyzer.analyze(url: url) { [weak self] r in self?.waveform.peaks = r.peaks; self?.waveform.rms = r.rms }
+                self.analyzer.analyze(url: url) { [weak self] r in self?.waveform.maxv = r.maxv; self?.waveform.minv = r.minv; self?.waveform.rms = r.rms }
                 self.updateGrid(); self.startTimer(); self.refresh()
             }
         }
@@ -303,6 +304,13 @@ final class PlayerViewController: NSViewController, NSWindowDelegate {
             if e.keyCode == 49 { self.togglePlay(); return nil }         // 49 = barre d'espace
             return e
         }
+    }
+
+    override func viewDidAppear() {
+        super.viewDidAppear()
+        // Donne le focus clavier à la forme d'onde (pas à un champ texte) → la barre
+        // d'espace lecture/pause fonctionne dès l'ouverture.
+        view.window?.makeFirstResponder(waveform)
     }
 
     // Arrête la lecture quand on ferme la fenêtre (bouton rouge ou Échap).

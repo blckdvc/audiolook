@@ -32,7 +32,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(follow); followItem = follow
         menu.addItem(.separator())
         menu.addItem(withTitle: Lang.t("About", "À propos"), action: #selector(about), keyEquivalent: "")
-        menu.addItem(withTitle: Lang.t("Quit", "Quitter"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        // Pas de raccourci : l'app est un agent (LSUIElement) sans menu principal, ⌘Q n'est pas actif.
+        menu.addItem(withTitle: Lang.t("Quit", "Quitter"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "")
         for i in menu.items { i.target = self }
         menu.items.last?.target = NSApp
         item.menu = menu
@@ -100,14 +101,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             windowController = wc; vc = c; controller = wc
         }
         lastLoadedPath = url.path
-        if follow {
-            // ne vole pas le focus : le Finder reste actif, le player suit
-            controller.window?.orderFront(nil)
-        } else {
-            NSApp.activate(ignoringOtherApps: true)
-            controller.showWindow(nil)
-            controller.window?.makeKeyAndOrderFront(nil)
-        }
+        // On active le player (fenêtre clé) : la barre d'espace et les autres
+        // touches lui sont alors adressées dès qu'un fichier est chargé.
+        NSApp.activate(ignoringOtherApps: true)
+        controller.showWindow(nil)
+        controller.window?.makeKeyAndOrderFront(nil)
         vc?.open(url: url)
     }
 

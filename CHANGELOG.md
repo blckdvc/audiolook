@@ -2,6 +2,13 @@
 
 All notable changes to **audiolook**.
 
+## 1.1.1 — 2026-10-24
+- **Much sharper waveform** — redrawn as a smooth, anti-aliased **min/max envelope**
+  at up to ~1 point per sample (capped), so it stays crisp when zoomed.
+- **Space bar** now reliably toggles play/pause: the window is a non-activating
+  floating panel that takes keyboard focus without stealing it from the Finder.
+- Removed the inoperative **⌘Q** shortcut shown next to "Quit" in the menu.
+
 ## 1.1.0 — 2026-10-24
 - **Waveform zoom** — mouse wheel or trackpad pinch; **pan** with a two-finger
   horizontal scroll or **Shift + wheel** (zoom and pan around the cursor).
