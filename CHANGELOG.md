@@ -2,9 +2,11 @@
 
 All notable changes to **audiolook**.
 
+## 1.2.2 — 2026-10-27
+- **Piano keyboard in the piano-roll** — a vertical keyboard on the left (black / white keys)
+  with shaded black-note lanes and an octave line at each C, so pitches are easy to read.
+
 ## 1.2.1 — 2026-10-27
-- **Note names in the piano-roll** — each note shows its name (C, C#, D…) centred in its
-  block when there's room to read it.
 - **MIDI volume** — the **Volume** control now works for `.mid` files too (it sets the MIDI
   Channel Volume, so it changes the level without affecting the timbre).
 

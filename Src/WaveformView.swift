@@ -41,8 +41,12 @@ final class WaveformView: NSView, NSDraggingSource {
     private var zoom: Double = 1                    // 1 = tout le fichier ; >1 = zoomé
     private var viewStart: Double = 0
     private var span: Double { 1.0 / zoom }
-    private func fx(_ frac: Double) -> CGFloat { CGFloat((frac - viewStart) / span) * bounds.width }
-    private func xf(_ x: CGFloat) -> Double { viewStart + Double(x / max(bounds.width, 1)) * span }
+    // En mode MIDI, un clavier vertical occupe la gauche ; la zone des notes commence après.
+    private let keyboardWidth: CGFloat = 20
+    private var contentLeft: CGFloat { isMidi ? keyboardWidth : 0 }
+    private var contentW: CGFloat { max(bounds.width - contentLeft, 1) }
+    private func fx(_ frac: Double) -> CGFloat { contentLeft + CGFloat((frac - viewStart) / span) * contentW }
+    private func xf(_ x: CGFloat) -> Double { viewStart + Double((x - contentLeft) / contentW) * span }
     private func clampStart(_ s: Double) -> Double { min(max(s, 0), max(0, 1 - span)) }
 
     private enum Drag { case none, seek, handleA, handleB, region }
@@ -223,54 +227,61 @@ final class WaveformView: NSView, NSDraggingSource {
         }
     }
 
-    /// Piano-roll : une note = un rectangle (x = temps, y = hauteur), accent si déjà jouée,
-    /// atténuée hors de la boucle A/B. Repères d'octave en fond.
+    /// Piano-roll : clavier vertical à gauche (touches noires / blanches), lignes de voies,
+    /// puis les notes (rectangle = temps × hauteur), accent si déjà jouées, atténuées hors boucle.
     private func drawPianoRoll(_ ctx: CGContext, _ b: NSRect) {
         let rows = max(1, pHi - pLo + 1)
         let rowH = b.height / CGFloat(rows)
         let playedX = fx(progress)
-        let xA = fx(loopA), xB = fx(loopB)
-        let cxA = min(max(xA, 0), b.width), cxB = min(max(xB, 0), b.width)
+        let cxA = min(max(fx(loopA), contentLeft), b.width), cxB = min(max(fx(loopB), contentLeft), b.width)
         let accent = NSColor.controlAccentColor
         let idle = NSColor(white: 0.62, alpha: 1)
+        func isBlack(_ p: Int) -> Bool { [1, 3, 6, 8, 10].contains(((p % 12) + 12) % 12) }
+        func rowY(_ p: Int) -> CGFloat { CGFloat(pHi - p) * rowH }
 
-        NSColor.labelColor.withAlphaComponent(0.07).setFill()
-        for p in stride(from: ((pLo + 11) / 12) * 12, through: pHi, by: 12) {
-            let y = CGFloat(pHi - p) * rowH
-            ctx.fill(CGRect(x: 0, y: y, width: b.width, height: max(0.5, rowH)))
+        // Voies : lignes noires assombries + trait d'octave à chaque Do (sur la zone des notes).
+        for p in pLo...pHi {
+            if isBlack(p) {
+                NSColor.black.withAlphaComponent(0.16).setFill()
+                ctx.fill(CGRect(x: contentLeft, y: rowY(p), width: contentW, height: rowH))
+            }
+            if ((p % 12) + 12) % 12 == 0 {
+                NSColor.labelColor.withAlphaComponent(0.14).setFill()
+                ctx.fill(CGRect(x: contentLeft, y: rowY(p) + rowH - 0.5, width: contentW, height: 1))
+            }
         }
 
+        // Notes.
         for n in notes {
             let x0 = fx(n.start), x1 = fx(n.start + n.dur)
-            if x1 < 0 || x0 > b.width { continue }
-            let x = max(0, x0)
+            if x1 < contentLeft || x0 > b.width { continue }
+            let x = max(contentLeft, x0)
             let w = max(2, min(x1, b.width) - x)
-            let y = CGFloat(pHi - n.pitch) * rowH
+            let y = rowY(n.pitch)
             let h = max(2, rowH - 1)
             let played = x0 < playedX - 0.5
             let cx = (x0 + x1) / 2
             let inLoop = cx >= cxA && cx <= cxB
-            let base = (played ? accent : idle).withAlphaComponent(inLoop ? 0.95 : 0.4)
-            base.setFill()
+            (played ? accent : idle).withAlphaComponent(inLoop ? 0.95 : 0.4).setFill()
             let r = min(2.5, h / 2)
             NSBezierPath(roundedRect: CGRect(x: x, y: y, width: w, height: h), xRadius: r, yRadius: r).fill()
-
-            // Nom de la note (C, C#, D…) au centre du bloc, si la place le permet.
-            let fs = min(h - 2, 11)
-            if fs >= 7 {
-                let name = WaveformView.noteNames[((n.pitch % 12) + 12) % 12] as NSString
-                let attrs: [NSAttributedString.Key: Any] = [
-                    .font: NSFont.systemFont(ofSize: fs, weight: .semibold),
-                    .foregroundColor: (played ? NSColor.white : NSColor.black).withAlphaComponent(inLoop ? 0.92 : 0.5),
-                ]
-                let sz = name.size(withAttributes: attrs)
-                if sz.width <= w - 5 {
-                    name.draw(at: NSPoint(x: x + (w - sz.width) / 2, y: y + (h - sz.height) / 2), withAttributes: attrs)
-                }
-            }
         }
+
+        // Clavier vertical (par-dessus, à gauche).
+        NSColor(white: 0.92, alpha: 1).setFill()
+        ctx.fill(CGRect(x: 0, y: 0, width: keyboardWidth, height: b.height))
+        for p in pLo...pHi {
+            let y = rowY(p)
+            if isBlack(p) {
+                NSColor(white: 0.13, alpha: 1).setFill()
+                ctx.fill(CGRect(x: 0, y: y, width: keyboardWidth * 0.62, height: rowH))
+            }
+            NSColor.black.withAlphaComponent(0.16).setFill()         // séparateur entre touches
+            ctx.fill(CGRect(x: 0, y: y, width: keyboardWidth, height: 0.5))
+        }
+        NSColor.black.withAlphaComponent(0.28).setFill()             // bord droit du clavier
+        ctx.fill(CGRect(x: keyboardWidth - 0.5, y: 0, width: 0.5, height: b.height))
     }
-    private static let noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 
     override func mouseDown(with e: NSEvent) {
         window?.makeFirstResponder(self)            // récupère le focus clavier (barre d'espace)
