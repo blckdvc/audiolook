@@ -2,6 +2,12 @@
 
 All notable changes to **audiolook**.
 
+## 1.2.1 — 2026-10-27
+- **Note names in the piano-roll** — each note shows its name (C, C#, D…) centred in its
+  block when there's room to read it.
+- **MIDI volume** — the **Volume** control now works for `.mid` files too (it sets the MIDI
+  Channel Volume, so it changes the level without affecting the timbre).
+
 ## 1.2.0 — 2026-10-27
 - **MIDI playback** — load Standard MIDI Files (`.mid` / `.midi`) and audition them with
   Apple's built-in **General MIDI** sound bank. The waveform area turns into a **piano-roll**;
@@ -11,8 +17,6 @@ All notable changes to **audiolook**.
 - **Drag a MIDI region into your DAW** — dragging the piano-roll exports a `.mid` of the A/B
   region (with your transposition applied), ready to drop onto a track and play with your own
   instruments.
-- Note: a master volume doesn't apply to MIDI playback, so the **Volume** control is disabled
-  for `.mid` files (use your system / DAW volume).
 
 ## 1.1.3 — 2026-10-24
 - **Aligned controls** — Volume / Pitch (and Tempo / Grid) now sit on shared,

@@ -254,8 +254,23 @@ final class WaveformView: NSView, NSDraggingSource {
             base.setFill()
             let r = min(2.5, h / 2)
             NSBezierPath(roundedRect: CGRect(x: x, y: y, width: w, height: h), xRadius: r, yRadius: r).fill()
+
+            // Nom de la note (C, C#, D…) au centre du bloc, si la place le permet.
+            let fs = min(h - 2, 11)
+            if fs >= 7 {
+                let name = WaveformView.noteNames[((n.pitch % 12) + 12) % 12] as NSString
+                let attrs: [NSAttributedString.Key: Any] = [
+                    .font: NSFont.systemFont(ofSize: fs, weight: .semibold),
+                    .foregroundColor: (played ? NSColor.white : NSColor.black).withAlphaComponent(inLoop ? 0.92 : 0.5),
+                ]
+                let sz = name.size(withAttributes: attrs)
+                if sz.width <= w - 5 {
+                    name.draw(at: NSPoint(x: x + (w - sz.width) / 2, y: y + (h - sz.height) / 2), withAttributes: attrs)
+                }
+            }
         }
     }
+    private static let noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 
     override func mouseDown(with e: NSEvent) {
         window?.makeFirstResponder(self)            // récupère le focus clavier (barre d'espace)

@@ -89,7 +89,7 @@ enum MidiFile {
     /// (changements d'instrument, CC, pitch-bend). Tempo : copié tel quel si `tempoBPM` est nil,
     /// sinon un unique événement de tempo à 0.
     static func transformedData(base: Data, semitones: Int, region: (a: Double, b: Double)?,
-                                totalBeats: Double, tempoBPM: Double?) -> Data? {
+                                totalBeats: Double, tempoBPM: Double?, channelVolume: Int? = nil) -> Data? {
         var srcOpt: MusicSequence?
         guard NewMusicSequence(&srcOpt) == noErr, let src = srcOpt else { return nil }
         defer { DisposeMusicSequence(src) }
@@ -153,6 +153,18 @@ enum MidiFile {
             }
         }
 
+        // Volume : contrôleur « Channel Volume » (CC7) à t=0 sur les 16 canaux (niveau, sans toucher au timbre).
+        if let cv = channelVolume {
+            var tOpt: MusicTrack?
+            if MusicSequenceNewTrack(dst, &tOpt) == noErr, let t = tOpt {
+                let v = UInt8(max(0, min(127, cv)))
+                for ch in 0..<16 {
+                    var m = MIDIChannelMessage(status: UInt8(0xB0 + ch), data1: 7, data2: v, reserved: 0)
+                    MusicTrackNewMIDIChannelEvent(t, 0, &m)
+                }
+            }
+        }
+
         var outData: Unmanaged<CFData>?
         guard MusicSequenceFileCreateData(dst, .midiType, MusicSequenceFileFlags(rawValue: 0),
                                           0, &outData) == noErr, let cf = outData else { return nil }
@@ -201,6 +213,7 @@ final class MidiPlayer: PlaybackEngine {
 
     private var pausedGlobal: Double = 0
     private var wrapTimer: Timer?
+    private var volTimer: Timer?
 
     // Banque General MIDI intégrée à macOS.
     private let soundBank: URL? = {
@@ -208,7 +221,19 @@ final class MidiPlayer: PlaybackEngine {
         return FileManager.default.fileExists(atPath: p) ? URL(fileURLWithPath: p) : nil
     }()
 
-    var volume: Float = 1   // AVMIDIPlayer n'expose pas de volume maître → piloté par le système (champ désactivé en MIDI)
+    // Volume : l'AVMIDIPlayer n'a pas de volume maître, on régénère la séquence avec un
+    // contrôleur « Channel Volume » (CC7). Débattu pour rester fluide pendant le glissement.
+    private var vol: Float = 1
+    var volume: Float {
+        get { vol }
+        set {
+            let v = max(0, min(1, newValue))
+            guard abs(v - vol) > 0.001 else { return }
+            vol = v
+            volTimer?.invalidate()
+            volTimer = Timer.scheduledTimer(withTimeInterval: 0.08, repeats: false) { [weak self] _ in self?.rebuild(keepPosition: true) }
+        }
+    }
 
     var progress: Double {
         if let p = player, duration > 0, isPlaying { return min(max(p.currentPosition / duration, 0), 1) }
@@ -236,13 +261,10 @@ final class MidiPlayer: PlaybackEngine {
         guard let baseData else { return }
         let wasPlaying = isPlaying
         let g = keepPosition ? progress : 0
-        let data: Data
-        if bypass || transpose == 0 {
-            data = baseData
-        } else {
-            data = MidiFile.transformedData(base: baseData, semitones: transpose, region: nil,
-                                            totalBeats: totalBeats, tempoBPM: nil) ?? baseData
-        }
+        let semis = bypass ? 0 : transpose
+        let cv = Int((vol * 127).rounded())
+        let data = MidiFile.transformedData(base: baseData, semitones: semis, region: nil,
+                                            totalBeats: totalBeats, tempoBPM: nil, channelVolume: cv) ?? baseData
         player?.stop()
         guard let p = try? AVMIDIPlayer(data: data, soundBankURL: soundBank) else { return }
         p.prepareToPlay()
@@ -306,6 +328,7 @@ final class MidiPlayer: PlaybackEngine {
 
     func stop() {
         stopWrapTimer()
+        volTimer?.invalidate(); volTimer = nil
         player?.stop()
         player = nil
         isPlaying = false

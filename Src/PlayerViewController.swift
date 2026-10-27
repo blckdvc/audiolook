@@ -244,7 +244,8 @@ final class PlayerViewController: NSViewController, NSWindowDelegate {
     // MIDI : lecture via la banque General MIDI d'Apple, affichage piano-roll.
     // (Le volume maître ne s'applique pas à l'AVMIDIPlayer → champ désactivé.)
     private func loadMidi(_ url: URL) {
-        volSlider.isEnabled = false; volValue.isEnabled = false
+        volSlider.isEnabled = true; volValue.isEnabled = true
+        midi.volume = Float(volSlider.doubleValue)
         midi.bypass = (bypassToggle.state == .on)
         midi.setTranspose(Float(pitchSlider.doubleValue.rounded()))
         midi.onStateChange = { [weak self] in self?.refresh() }
