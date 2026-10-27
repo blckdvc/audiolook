@@ -12,7 +12,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var lastLoadedPath: String?
     private var followItem: NSMenuItem?
 
-    private let audioExts: Set<String> = ["wav","aif","aiff","aifc","caf","mp3","m4a","aac","flac","ogg","opus"]
+    private let audioExts: Set<String> = ["wav","aif","aiff","aifc","caf","mp3","m4a","aac","flac","ogg","opus","mid","midi"]
 
     func applicationDidFinishLaunching(_ note: Notification) {
         setupStatusItem()
@@ -95,6 +95,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // Mémorise taille + position d'un lancement à l'autre et restaure le dernier cadre.
             if !w.setFrameUsingName("audiolookMain") { w.center() }
             w.setFrameAutosaveName("audiolookMain")
+            // Si le cadre restauré est hors des écrans connectés (ex. ancien 2e écran débranché),
+            // on recentre pour ne pas ouvrir la fenêtre hors de vue.
+            let visible = NSScreen.screens.contains { scr in
+                let i = scr.visibleFrame.intersection(w.frame)
+                return i.width > 120 && i.height > 120
+            }
+            if !visible { w.center() }
             w.level = .floating
             w.delegate = c                              // arrête la lecture à la fermeture (windowWillClose)
             let wc = NSWindowController(window: w)

@@ -35,6 +35,9 @@ final class PlayerViewController: NSViewController, NSWindowDelegate {
     private let bypassToggle = NSButton(checkboxWithTitle: Lang.t("Bypass processing (pitch / tempo)", "Désactiver le traitement (pitch / tempo)"), target: nil, action: nil)
 
     private let player = LoopPlayer()
+    private let midi = MidiPlayer()
+    private var isMidi = false
+    private var active: PlaybackEngine { isMidi ? midi : player }
     private let analyzer = WaveformAnalyzer()
     private var timer: Timer?
     private var reprocessTimer: Timer?
@@ -58,8 +61,8 @@ final class PlayerViewController: NSViewController, NSWindowDelegate {
         fullButton.title = Lang.t("Whole loop", "Boucle entière"); fullButton.bezelStyle = .rounded; fullButton.controlSize = .small
         fullButton.target = self; fullButton.action = #selector(resetLoop); fullButton.font = .systemFont(ofSize: 11)
 
-        waveform.onSeek = { [weak self] f in self?.player.seek(toGlobal: f); self?.refresh() }
-        waveform.onLoopChange = { [weak self] a, b in self?.player.setLoopRegion(a: a, b: b); self?.refresh() }
+        waveform.onSeek = { [weak self] f in self?.active.seek(toGlobal: f); self?.refresh() }
+        waveform.onLoopChange = { [weak self] a, b in self?.active.setLoopRegion(a: a, b: b); self?.refresh() }
         waveform.provideURL = { [weak self] in self?.exportURL() }   // glisser la forme d'onde = exporter
         waveform.onSpace = { [weak self] in self?.togglePlay() }      // barre d'espace → lecture / pause
 
@@ -189,7 +192,7 @@ final class PlayerViewController: NSViewController, NSWindowDelegate {
 
     // MARK: Chargement
     func open(url: URL) {
-        let exts: Set<String> = ["wav","aif","aiff","aifc","caf","mp3","m4a","aac","flac","ogg","opus"]
+        let exts: Set<String> = ["wav","aif","aiff","aifc","caf","mp3","m4a","aac","flac","ogg","opus","mid","midi"]
         let dir = url.deletingLastPathComponent()
         siblings = (try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil))?
             .filter { exts.contains($0.pathExtension.lowercased()) }
@@ -199,10 +202,18 @@ final class PlayerViewController: NSViewController, NSWindowDelegate {
     }
 
     private func load(_ url: URL) {
-        analyzer.cancel(); player.stop()
-        waveform.maxv = []; waveform.minv = []; waveform.rms = []; waveform.progress = 0; waveform.loopA = 0; waveform.loopB = 1
+        analyzer.cancel(); player.stop(); midi.stop()
+        waveform.maxv = []; waveform.minv = []; waveform.rms = []; waveform.notes = []
+        waveform.progress = 0; waveform.loopA = 0; waveform.loopB = 1
         currentURL = url
+        let ext = url.pathExtension.lowercased()
+        isMidi = (ext == "mid" || ext == "midi")
         titleLabel.stringValue = Lang.t("Loading…", "Chargement…"); infoLabel.stringValue = ""
+        if isMidi { loadMidi(url) } else { loadAudio(url) }
+    }
+
+    private func loadAudio(_ url: URL) {
+        volSlider.isEnabled = true; volValue.isEnabled = true
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             guard let src = SampleProcessor.read(url: url) else {
                 DispatchQueue.main.async { self?.titleLabel.stringValue = Lang.t("Can't play this file", "Lecture impossible") }; return
@@ -230,8 +241,30 @@ final class PlayerViewController: NSViewController, NSWindowDelegate {
         }
     }
 
+    // MIDI : lecture via la banque General MIDI d'Apple, affichage piano-roll.
+    // (Le volume maître ne s'applique pas à l'AVMIDIPlayer → champ désactivé.)
+    private func loadMidi(_ url: URL) {
+        volSlider.isEnabled = false; volValue.isEnabled = false
+        midi.bypass = (bypassToggle.state == .on)
+        midi.setTranspose(Float(pitchSlider.doubleValue.rounded()))
+        midi.onStateChange = { [weak self] in self?.refresh() }
+        guard midi.load(url: url) else {
+            titleLabel.stringValue = Lang.t("Can't play this file", "Lecture impossible"); return
+        }
+        sourceBPM = midi.sourceBPM.rounded()
+        targetBPM = sourceBPM
+        tgtSlider.doubleValue = sourceBPM
+        midi.setRate(Float(rateFromBPM()))
+        sourceDuration = midi.duration
+        let tb = max(midi.totalBeats, 0.0001)
+        waveform.notes = midi.rawNotes.map { PRNote(start: $0.start / tb, dur: max($0.dur / tb, 0.0015), pitch: $0.pitch) }
+        titleLabel.stringValue = url.lastPathComponent
+        infoLabel.stringValue = describeMidi(url, notes: midi.rawNotes.count)
+        updateGrid(); startTimer(); refresh()
+    }
+
     private func navigate(_ d: Int) { guard !siblings.isEmpty else { return }; index = (index + d + siblings.count) % siblings.count; load(siblings[index]) }
-    func suspend() { player.pause(); refresh() }
+    func suspend() { active.pause(); refresh() }
 
     // MARK: Tempo
     private func rateFromBPM() -> Double {
@@ -239,7 +272,7 @@ final class PlayerViewController: NSViewController, NSWindowDelegate {
         return targetBPM / sourceBPM
     }
     private func applyTempo() {
-        player.setRate(Float(rateFromBPM()))
+        active.setRate(Float(rateFromBPM()))
         updateGrid(); updateValues(); scheduleReprocess()
     }
     @objc private func tgtSliderChanged() { targetBPM = tgtSlider.doubleValue.rounded(); applyTempo() }
@@ -270,19 +303,19 @@ final class PlayerViewController: NSViewController, NSWindowDelegate {
     }
 
     // MARK: Transport / divers
-    @objc private func togglePlay() { player.togglePlay(); refresh() }
-    @objc private func toggleLoop() { player.setLoop(loopButton.state == .on); refresh() }
-    @objc private func resetLoop() { player.setLoopRegion(a: 0, b: 1); waveform.loopA = 0; waveform.loopB = 1; refresh() }
+    @objc private func togglePlay() { active.togglePlay(); refresh() }
+    @objc private func toggleLoop() { active.setLoop(loopButton.state == .on); refresh() }
+    @objc private func resetLoop() { active.setLoopRegion(a: 0, b: 1); waveform.loopA = 0; waveform.loopB = 1; refresh() }
     @objc private func toggleBypass() {
         let on = bypassToggle.state == .on
-        player.bypass = on
+        active.bypass = on
         for v in [srcBPMField, tgtField, beatsField] { v.isEnabled = !on }
         tgtSlider.isEnabled = !on; pitchSlider.isEnabled = !on; pitchValue.isEnabled = !on
-        player.reprocess(); updateValues()
+        active.reprocess(); updateValues()
     }
 
-    @objc private func volChanged() { player.volume = Float(volSlider.doubleValue); updateValues() }
-    @objc private func pitchChanged() { player.setTranspose(Float(pitchSlider.doubleValue.rounded())); updateValues(); scheduleReprocess() }
+    @objc private func volChanged() { active.volume = Float(volSlider.doubleValue); updateValues() }
+    @objc private func pitchChanged() { active.setTranspose(Float(pitchSlider.doubleValue.rounded())); updateValues(); scheduleReprocess() }
     @objc private func resetVol() { volSlider.doubleValue = 1; volChanged() }
     @objc private func resetPitch() { pitchSlider.doubleValue = 0; pitchChanged() }
 
@@ -300,7 +333,7 @@ final class PlayerViewController: NSViewController, NSWindowDelegate {
 
     private func scheduleReprocess() {
         reprocessTimer?.invalidate()
-        reprocessTimer = Timer.scheduledTimer(withTimeInterval: 0.18, repeats: false) { [weak self] _ in self?.player.reprocess() }
+        reprocessTimer = Timer.scheduledTimer(withTimeInterval: 0.18, repeats: false) { [weak self] _ in self?.active.reprocess() }
     }
 
     override func viewDidLoad() {
@@ -323,7 +356,7 @@ final class PlayerViewController: NSViewController, NSWindowDelegate {
     }
 
     // Arrête la lecture quand on ferme la fenêtre (bouton rouge ou Échap).
-    func windowWillClose(_ notification: Notification) { player.pause(); refresh() }
+    func windowWillClose(_ notification: Notification) { active.pause(); refresh() }
 
     override func keyDown(with e: NSEvent) {
         switch e.keyCode {
@@ -343,14 +376,18 @@ final class PlayerViewController: NSViewController, NSWindowDelegate {
         // si la boucle n'est pas entière, on n'exporte que le morceau entre A et B.
         let a = waveform.loopA, b = waveform.loopB
         let full = a <= 0.0005 && b >= 0.9995
-        guard let buf = player.renderRegionForExport(a: a, b: b),
-              let base = currentURL?.deletingPathExtension().lastPathComponent else { return nil }
+        guard let base = currentURL?.deletingPathExtension().lastPathComponent else { return nil }
         var name = base
         if bypassToggle.state == .off {
             if Int(targetBPM) != Int(sourceBPM) { name += "_\(Int(targetBPM))bpm" }
             let st = Int(pitchSlider.doubleValue.rounded()); if st != 0 { name += String(format: "_%+dst", st) }
         }
         if !full { name += "_loop" }
+        if isMidi {
+            // On glisse un .mid (région A/B, transposition appliquée) : prêt à reposer dans le DAW.
+            return midi.exportRegion(a: a, b: b, targetBPM: targetBPM, name: name)
+        }
+        guard let buf = player.renderRegionForExport(a: a, b: b) else { return nil }
         return LogicImporter.exportTemp(buf, name: name)
     }
 
@@ -360,12 +397,12 @@ final class PlayerViewController: NSViewController, NSWindowDelegate {
         let t = Timer(timeInterval: 1.0/30.0, repeats: true) { [weak self] _ in self?.tick() }
         RunLoop.main.add(t, forMode: .common); timer = t
     }
-    private func tick() { waveform.progress = player.progress; timeLabel.stringValue = timeText() }
+    private func tick() { waveform.progress = active.progress; timeLabel.stringValue = timeText() }
     private func refresh() {
-        waveform.progress = player.progress; waveform.loopA = player.loopA; waveform.loopB = player.loopB
+        waveform.progress = active.progress; waveform.loopA = active.loopA; waveform.loopB = active.loopB
         timeLabel.stringValue = timeText()
-        playButton.image = sym(player.isPlaying ? "pause.fill" : "play.fill")
-        loopButton.contentTintColor = player.loopEnabled ? .controlAccentColor : .tertiaryLabelColor
+        playButton.image = sym(active.isPlaying ? "pause.fill" : "play.fill")
+        loopButton.contentTintColor = active.loopEnabled ? .controlAccentColor : .tertiaryLabelColor
         updateValues()
     }
     private func updateValues() {
@@ -375,7 +412,7 @@ final class PlayerViewController: NSViewController, NSWindowDelegate {
         tgtField.stringValue = "\(Int(targetBPM))"
         if sourceDuration > 0 { beatsField.stringValue = "\(Int((sourceBPM * sourceDuration / 60).rounded()))" }
     }
-    private func timeText() -> String { "\(fmt(player.currentTime)) / \(fmt(player.regionDuration))" }
+    private func timeText() -> String { "\(fmt(active.currentTime)) / \(fmt(active.regionDuration))" }
     private func fmt(_ t: TimeInterval) -> String { guard t.isFinite else { return "0:00.0" }; let d = Int((t*10).rounded(.down)); return String(format: "%d:%02d.%d", d/600, (d/10)%60, d%10) }
     private func describe(_ url: URL, _ src: AudioSource?) -> String {
         let r = (src?.sampleRate ?? 44100)/1000
@@ -385,9 +422,14 @@ final class PlayerViewController: NSViewController, NSWindowDelegate {
         if siblings.count > 1 { parts.append("\(index+1)/\(siblings.count)") }
         return parts.filter { !$0.isEmpty }.joined(separator: " · ")
     }
+    private func describeMidi(_ url: URL, notes: Int) -> String {
+        var parts = ["MIDI", "\(notes) " + Lang.t("notes", "notes"), fmt(midi.duration), "≈\(Int(sourceBPM)) BPM"]
+        if siblings.count > 1 { parts.append("\(index+1)/\(siblings.count)") }
+        return parts.filter { !$0.isEmpty }.joined(separator: " · ")
+    }
 
     deinit {
-        timer?.invalidate(); reprocessTimer?.invalidate(); analyzer.cancel(); player.stop()
+        timer?.invalidate(); reprocessTimer?.invalidate(); analyzer.cancel(); player.stop(); midi.stop()
         if let keyMonitor { NSEvent.removeMonitor(keyMonitor) }
     }
 }

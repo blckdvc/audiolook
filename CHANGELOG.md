@@ -2,6 +2,18 @@
 
 All notable changes to **audiolook**.
 
+## 1.2.0 — 2026-10-27
+- **MIDI playback** — load Standard MIDI Files (`.mid` / `.midi`) and audition them with
+  Apple's built-in **General MIDI** sound bank. The waveform area turns into a **piano-roll**;
+  A/B loop, tempo, transpose, zoom / pan, magnetic grid and the space bar all work as with audio.
+- **Transpose & tempo on MIDI** — the Pitch control shifts the notes, the tempo re-times
+  playback (both non-destructive).
+- **Drag a MIDI region into your DAW** — dragging the piano-roll exports a `.mid` of the A/B
+  region (with your transposition applied), ready to drop onto a track and play with your own
+  instruments.
+- Note: a master volume doesn't apply to MIDI playback, so the **Volume** control is disabled
+  for `.mid` files (use your system / DAW volume).
+
 ## 1.1.3 — 2026-10-24
 - **Aligned controls** — Volume / Pitch (and Tempo / Grid) now sit on shared,
   aligned columns (icon · label · slider · value · reset) instead of drifting with

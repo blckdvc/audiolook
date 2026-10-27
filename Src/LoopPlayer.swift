@@ -3,7 +3,7 @@ import AVFoundation
 /// Lecture en boucle d'un échantillon rendu hors-ligne (Signalsmith) :
 /// pitch/stretch haute qualité, volume temps réel, région A/B,
 /// et transitions sans clic (fondus courts + bouclage à fondu enchaîné).
-final class LoopPlayer {
+final class LoopPlayer: PlaybackEngine {
     private let engine = AVAudioEngine()
     private let node = AVAudioPlayerNode()
 

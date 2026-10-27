@@ -17,6 +17,10 @@ Free and open-source 🙂 — if you feel like it, buy me a few tokens:
 
 ## Features
 
+- **MIDI playback**: load a Standard MIDI File (`.mid` / `.midi`) and audition it with Apple's
+  built-in General MIDI sound bank. The display becomes a **piano-roll** and every control below
+  (loop, tempo, transpose, zoom/pan, grid, space bar) works the same way. Dragging the piano-roll
+  exports a **`.mid`** of the A/B region (with your transposition) to drop into your DAW.
 - **Waveform** with playhead; click to seek. **Zoom** with the mouse wheel or a trackpad pinch;
   **pan** with a two-finger horizontal scroll (trackpad) or **Shift + wheel** (mouse).
 - **A/B loop** with crossfade (click-free): two handles, or the **bar at the top between

@@ -1,12 +1,26 @@
 import Cocoa
 
-/// Forme d'onde : pics + RMS, partie jouée en accent, tête de lecture,
+/// Note affichée dans le piano-roll (temps en fractions 0…1 du fichier).
+struct PRNote { var start: Double; var dur: Double; var pitch: Int }
+
+/// Forme d'onde (audio) OU piano-roll (MIDI) : partie jouée en accent, tête de lecture,
 /// région de boucle A/B (poignées glissables), clic pour se positionner,
-/// glisser le corps pour exporter le WAV, et zoom (molette / pinch trackpad).
+/// glisser le corps pour exporter, et zoom (molette / pinch trackpad).
 final class WaveformView: NSView, NSDraggingSource {
     var maxv: [Float] = [] { didSet { zoom = 1; viewStart = 0; needsDisplay = true } }   // enveloppe max (signée)
     var minv: [Float] = [] { didSet { needsDisplay = true } }                            // enveloppe min (signée)
     var rms: [Float] = [] { didSet { needsDisplay = true } }
+
+    // Mode piano-roll (MIDI) : si `notes` est non vide, on dessine les notes au lieu de la forme d'onde.
+    var notes: [PRNote] = [] { didSet { isMidi = !notes.isEmpty; computePitchRange(); zoom = 1; viewStart = 0; needsDisplay = true } }
+    private var isMidi = false
+    private var pLo = 48, pHi = 72
+    private func computePitchRange() {
+        guard !notes.isEmpty else { pLo = 48; pHi = 72; return }
+        var lo = 127, hi = 0
+        for n in notes { lo = min(lo, n.pitch); hi = max(hi, n.pitch) }
+        pLo = max(0, lo - 2); pHi = min(127, max(hi + 2, lo + 6))
+    }
     var progress: Double = 0 { didSet { if oldValue != progress { needsDisplay = true } } }
     var loopA: Double = 0 { didSet { needsDisplay = true; window?.invalidateCursorRects(for: self) } }
     var loopB: Double = 1 { didSet { needsDisplay = true; window?.invalidateCursorRects(for: self) } }
@@ -91,8 +105,10 @@ final class WaveformView: NSView, NSDraggingSource {
         if cxA > 0 { ctx.fill(CGRect(x: 0, y: 0, width: cxA, height: b.height)) }
         if cxB < b.width { ctx.fill(CGRect(x: cxB, y: 0, width: b.width - cxB, height: b.height)) }
 
-        NSColor.labelColor.withAlphaComponent(0.12).setFill()
-        ctx.fill(CGRect(x: b.minX, y: midY - 0.5, width: b.width, height: 1))
+        if !isMidi {
+            NSColor.labelColor.withAlphaComponent(0.12).setFill()
+            ctx.fill(CGRect(x: b.minX, y: midY - 0.5, width: b.width, height: 1))
+        }
 
         if gridEnabled && gridSpacing > 0.0005 {
             var idx = max(1, Int((viewStart / gridSpacing).rounded(.down)))
@@ -109,7 +125,9 @@ final class WaveformView: NSView, NSDraggingSource {
             }
         }
 
-        if !maxv.isEmpty {
+        if isMidi {
+            drawPianoRoll(ctx, b)
+        } else if !maxv.isEmpty {
             let count = maxv.count
             let cols = max(1, Int(b.width.rounded(.up)))
             let playedX = fx(progress)
@@ -202,6 +220,40 @@ final class WaveformView: NSView, NSDraggingSource {
                 .foregroundColor: NSColor.secondaryLabelColor]
             let sz = (s as NSString).size(withAttributes: attrs)
             (s as NSString).draw(at: NSPoint(x: b.width - sz.width - 6, y: 4), withAttributes: attrs)
+        }
+    }
+
+    /// Piano-roll : une note = un rectangle (x = temps, y = hauteur), accent si déjà jouée,
+    /// atténuée hors de la boucle A/B. Repères d'octave en fond.
+    private func drawPianoRoll(_ ctx: CGContext, _ b: NSRect) {
+        let rows = max(1, pHi - pLo + 1)
+        let rowH = b.height / CGFloat(rows)
+        let playedX = fx(progress)
+        let xA = fx(loopA), xB = fx(loopB)
+        let cxA = min(max(xA, 0), b.width), cxB = min(max(xB, 0), b.width)
+        let accent = NSColor.controlAccentColor
+        let idle = NSColor(white: 0.62, alpha: 1)
+
+        NSColor.labelColor.withAlphaComponent(0.07).setFill()
+        for p in stride(from: ((pLo + 11) / 12) * 12, through: pHi, by: 12) {
+            let y = CGFloat(pHi - p) * rowH
+            ctx.fill(CGRect(x: 0, y: y, width: b.width, height: max(0.5, rowH)))
+        }
+
+        for n in notes {
+            let x0 = fx(n.start), x1 = fx(n.start + n.dur)
+            if x1 < 0 || x0 > b.width { continue }
+            let x = max(0, x0)
+            let w = max(2, min(x1, b.width) - x)
+            let y = CGFloat(pHi - n.pitch) * rowH
+            let h = max(2, rowH - 1)
+            let played = x0 < playedX - 0.5
+            let cx = (x0 + x1) / 2
+            let inLoop = cx >= cxA && cx <= cxB
+            let base = (played ? accent : idle).withAlphaComponent(inLoop ? 0.95 : 0.4)
+            base.setFill()
+            let r = min(2.5, h / 2)
+            NSBezierPath(roundedRect: CGRect(x: x, y: y, width: w, height: h), xRadius: r, yRadius: r).fill()
         }
     }
 

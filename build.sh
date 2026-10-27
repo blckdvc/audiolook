@@ -37,8 +37,8 @@ cat > "$APP/Contents/Info.plist" <<'PL'
   <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
   <key>CFBundleName</key><string>audiolook</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleShortVersionString</key><string>1.1.3</string>
-  <key>CFBundleVersion</key><string>14</string>
+  <key>CFBundleShortVersionString</key><string>1.2.0</string>
+  <key>CFBundleVersion</key><string>15</string>
   <key>LSMinimumSystemVersion</key><string>13.0</string>
   <key>LSApplicationCategoryType</key><string>public.app-category.music</string>
   <key>LSUIElement</key><true/>
@@ -59,6 +59,7 @@ cat > "$APP/Contents/Info.plist" <<'PL'
       <string>com.apple.m4a-audio</string>
       <string>com.apple.coreaudio-format</string>
       <string>org.xiph.flac</string>
+      <string>public.midi-audio</string>
     </array>
   </dict></array>
 </dict></plist>
