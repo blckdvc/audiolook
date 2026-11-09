@@ -21,3 +21,6 @@ test/
 
 # DMG staging (généré)
 .dmgstage/
+
+# Empreinte publiée avec la release (générée)
+audiolook.dmg.sha256

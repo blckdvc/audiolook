@@ -11,6 +11,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var pollTimer: Timer?
     private var lastLoadedPath: String?
     private var followItem: NSMenuItem?
+    private var autoUpdateItem: NSMenuItem?
 
     private let audioExts: Set<String> = ["wav","aif","aiff","aifc","caf","mp3","m4a","aac","flac","ogg","opus","mid","midi"]
 
@@ -18,6 +19,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         setupStatusItem()
         registerHotKey()
         startPolling()
+        Updater.shared.start()
     }
 
     // MARK: Barre de menus
@@ -31,6 +33,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         follow.state = followSelection ? .on : .off
         menu.addItem(follow); followItem = follow
         menu.addItem(.separator())
+        menu.addItem(withTitle: Lang.t("Check for Updates…", "Rechercher les mises à jour…"), action: #selector(checkForUpdates), keyEquivalent: "")
+        let auto = NSMenuItem(title: Lang.t("Check Automatically", "Vérifier automatiquement"), action: #selector(toggleAutoUpdate), keyEquivalent: "")
+        auto.state = Updater.shared.automaticChecks ? .on : .off
+        menu.addItem(auto); autoUpdateItem = auto
+        menu.addItem(.separator())
         menu.addItem(withTitle: Lang.t("About", "À propos"), action: #selector(about), keyEquivalent: "")
         // Pas de raccourci : l'app est un agent (LSUIElement) sans menu principal, ⌘Q n'est pas actif.
         menu.addItem(withTitle: Lang.t("Quit", "Quitter"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "")
@@ -43,6 +50,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func toggleFollow() {
         followSelection.toggle()
         followItem?.state = followSelection ? .on : .off
+    }
+
+    @objc private func checkForUpdates() {
+        Updater.shared.check(userInitiated: true)
+    }
+
+    @objc private func toggleAutoUpdate() {
+        Updater.shared.automaticChecks.toggle()
+        autoUpdateItem?.state = Updater.shared.automaticChecks ? .on : .off
     }
 
     @objc private func about() {

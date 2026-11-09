@@ -2,6 +2,13 @@
 
 All notable changes to **audiolook**.
 
+## 1.3.0 — 2026-11-09
+- **Automatic updates** — audiolook checks GitHub for a new release at launch and then once a
+  day. When one is available it shows the release notes and offers **Install and Relaunch**,
+  **Later** or **Skip This Version**. The new version is downloaded, verified (SHA-256 when
+  published, same app, newer version, intact signature), installed in place and relaunched.
+- Menu-bar entries **Check for Updates…** and **Check Automatically** (on by default).
+
 ## 1.2.2 — 2026-10-27
 - **Piano keyboard in the piano-roll** — a vertical keyboard on the left (black / white keys)
   with shaded black-note lanes and an octave line at each C, so pitches are easy to read.

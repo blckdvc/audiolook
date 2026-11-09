@@ -51,6 +51,21 @@ right-click **audiolook › Open › Open** (macOS 13/14), or System Settings �
 audiolook lives in the **menu bar** (no Dock icon): select an audio file in the Finder and it
 opens on its own.
 
+## Updates
+
+From version 1.3.0, audiolook updates itself: it checks the
+[GitHub releases](https://github.com/blckdvc/audiolook/releases) at launch and once a day, and
+offers to install a new version (downloaded, verified, installed in place, relaunched).
+Use **Check for Updates…** in the menu-bar menu to check now, or untick **Check Automatically**
+to turn it off. Versions before 1.3.0 need to be updated once by hand from the DMG.
+
+For the update to install, audiolook must be in a folder it can write to (e.g. **Applications**),
+not launched straight from the DMG.
+
+**Publishing a release** (maintainer): bump the version in `build.sh`, add a section to
+`CHANGELOG.md`, then run `./release.command` — it builds, makes the DMG and its SHA-256, and
+creates the GitHub release that the app looks for.
+
 ## Export to a DAW
 
 - **Drag the waveform**: just drag the waveform itself into your DAW's arrangement and drop it
